@@ -1,0 +1,19 @@
+# Dependencies
+node_modules
+
+# Next.js & Build
+.next
+build
+out
+dist
+
+# Local env files & log
+.env*
+*.log
+npm-debug.log*
+
+# npm lock file (자동 생성 파일 무시)
+package-lock.json
+
+# static assets
+public/
