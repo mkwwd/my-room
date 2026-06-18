@@ -6,6 +6,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import ComputerDesktop, { type ScreenBounds } from './ComputerDesktop';
+import RoomCameraControls, {
+  RoomCameraController,
+  type ViewDirection,
+} from './RoomCamera';
 
 const ROOM = {
   width: 13.4,
@@ -16,16 +20,6 @@ const ROOM = {
 };
 
 const WALL_THICKNESS = 0.32;
-const CAMERA_FOV = 42;
-const COMPUTER_CAMERA_FOV = 30;
-const CAMERA_DISTANCE = 10;
-const CAMERA_HEIGHT = 8.1;
-const CAMERA_SIDE_FOLLOW = 0.38;
-const CAMERA_LOOK_DISTANCE = 0.5;
-const CAMERA_LOOK_HEIGHT = 3;
-const VIEW_DIRECTION_COUNT = 4;
-const QUARTER_TURN = Math.PI / 2;
-const FULL_TURN = Math.PI * 2;
 const DESK_MODEL_PATH = '/desk1.glb';
 const DESKTOP_MODEL_PATH = '/desktop.glb';
 const TV_MODEL_PATH = '/tv.glb';
@@ -46,7 +40,6 @@ type RoomWalls = {
   left: THREE.Mesh;
   right: THREE.Mesh;
 };
-type ViewDirection = 0 | 1 | 2 | 3;
 type SceneMode = 'explore' | 'computer';
 type ScreenPosition = {
   x: number;
@@ -77,25 +70,6 @@ function addBox(
   mesh.receiveShadow = true;
   parent.add(mesh);
   return mesh;
-}
-
-function getNearestViewAngle(
-  currentAngle: number,
-  nextViewDirection: ViewDirection,
-) {
-  const baseAngle = nextViewDirection * QUARTER_TURN;
-  const turnOffset = Math.round((currentAngle - baseAngle) / FULL_TURN);
-  return baseAngle + turnOffset * FULL_TURN;
-}
-
-function getOrbitVectors(angle: number) {
-  const sin = Math.sin(angle);
-  const cos = Math.cos(angle);
-
-  return {
-    forward: new THREE.Vector3(-sin, 0, -cos),
-    right: new THREE.Vector3(cos, 0, -sin),
-  };
 }
 
 function buildRoom(
@@ -367,8 +341,7 @@ function clamp(value: number, min: number, max: number) {
 
 export default function RoomScene() {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const viewDirectionRef = useRef<ViewDirection>(0);
-  const targetOrbitAngleRef = useRef(0);
+  const cameraControllerRef = useRef<RoomCameraController | null>(null);
   const sceneModeRef = useRef<SceneMode>('explore');
   const [viewDirection, setViewDirection] = useState<ViewDirection>(0);
   const [sceneMode, setSceneMode] = useState<SceneMode>('explore');
@@ -389,28 +362,14 @@ export default function RoomScene() {
       visible: false,
     });
 
-  const controlBaseClass =
-    'grid h-[42px] w-[42px] cursor-pointer place-items-center rounded-full border-0 bg-white/60 text-[28px] leading-none font-black text-[#4b382c] transition-[background,box-shadow,transform] duration-200 hover:-translate-y-px hover:bg-[#c8f2c4] hover:shadow-[inset_0_-3px_rgba(63,92,45,0.14)] focus-visible:-translate-y-px focus-visible:bg-[#c8f2c4] focus-visible:shadow-[inset_0_-3px_rgba(63,92,45,0.14)]';
-  const activeControlClass =
-    '-translate-y-px bg-[#c8f2c4] shadow-[inset_0_-3px_rgba(63,92,45,0.14)]';
-
   const setView = (nextViewDirection: ViewDirection) => {
-    viewDirectionRef.current = nextViewDirection;
-    targetOrbitAngleRef.current = getNearestViewAngle(
-      targetOrbitAngleRef.current,
-      nextViewDirection,
-    );
+    cameraControllerRef.current?.setView(nextViewDirection);
     setViewDirection(nextViewDirection);
   };
 
   const rotateView = (step: -1 | 1) => {
-    const nextViewDirection = ((viewDirectionRef.current +
-      step +
-      VIEW_DIRECTION_COUNT) %
-      VIEW_DIRECTION_COUNT) as ViewDirection;
-
-    viewDirectionRef.current = nextViewDirection;
-    targetOrbitAngleRef.current += step * QUARTER_TURN;
+    const nextViewDirection = cameraControllerRef.current?.rotate(step);
+    if (nextViewDirection === undefined) return;
     setViewDirection(nextViewDirection);
   };
 
@@ -441,14 +400,11 @@ export default function RoomScene() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
 
-    const camera = new THREE.PerspectiveCamera(
-      CAMERA_FOV,
+    const cameraController = new RoomCameraController(
       mount.clientWidth / Math.max(mount.clientHeight, 1),
-      0.1,
-      100,
     );
-    camera.position.set(0, CAMERA_HEIGHT, CAMERA_DISTANCE);
-    camera.lookAt(0, CAMERA_LOOK_HEIGHT, -CAMERA_LOOK_DISTANCE);
+    cameraControllerRef.current = cameraController;
+    const camera = cameraController.camera;
 
     scene.add(new THREE.HemisphereLight('#ffffff', '#b99572', 1.7));
     scene.add(new THREE.AmbientLight('#ffffff', 0.35));
@@ -484,12 +440,6 @@ export default function RoomScene() {
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const clock = new THREE.Clock();
-    const lookAtTarget = new THREE.Vector3(
-      0,
-      CAMERA_LOOK_HEIGHT,
-      -CAMERA_LOOK_DISTANCE,
-    );
-    let orbitAngle = targetOrbitAngleRef.current;
     let isHoveringComputer = false;
     let lastHintPosition: ScreenPosition = { x: 0, y: 0, visible: false };
     let lastScreenBounds: ScreenBounds = {
@@ -626,8 +576,7 @@ export default function RoomScene() {
     const resize = () => {
       const width = mount.clientWidth;
       const height = Math.max(mount.clientHeight, 1);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+      cameraController.resize(width, height);
       renderer.setSize(width, height);
     };
 
@@ -713,14 +662,8 @@ export default function RoomScene() {
 
     const animate = () => {
       const delta = Math.min(clock.getDelta(), 0.04);
-      const cameraEase = 1 - Math.pow(0.02, delta);
-      orbitAngle = THREE.MathUtils.lerp(
-        orbitAngle,
-        targetOrbitAngleRef.current,
-        cameraEase,
-      );
-      const { forward: viewForward, right: viewRight } =
-        getOrbitVectors(orbitAngle);
+      const cameraFrame = cameraController.beginFrame(delta);
+      const { forward: viewForward, right: viewRight } = cameraFrame;
       const moveRight =
         (keys.has('d') || keys.has('arrowright') ? 1 : 0) -
         (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
@@ -751,38 +694,13 @@ export default function RoomScene() {
           ? 0.025 * Math.sin(clock.elapsedTime * 10)
           : 0;
 
-      const desiredCamera = new THREE.Vector3();
-      const desiredLookAt = new THREE.Vector3();
-      const cameraSideFollow = THREE.MathUtils.clamp(
-        character.position.dot(viewRight) * CAMERA_SIDE_FOLLOW,
-        -1.35,
-        1.35,
-      );
-
-      if (sceneModeRef.current === 'computer') {
-        desiredCamera.copy(computerFocusCamera);
-        desiredLookAt.copy(computerFocusTarget);
-      } else {
-        desiredCamera
-          .copy(viewForward)
-          .multiplyScalar(-CAMERA_DISTANCE)
-          .addScaledVector(viewRight, cameraSideFollow);
-        desiredCamera.y = CAMERA_HEIGHT;
-
-        desiredLookAt
-          .copy(viewForward)
-          .multiplyScalar(CAMERA_LOOK_DISTANCE)
-          .addScaledVector(viewRight, cameraSideFollow);
-        desiredLookAt.y = CAMERA_LOOK_HEIGHT;
-      }
-
-      const desiredFov =
-        sceneModeRef.current === 'computer' ? COMPUTER_CAMERA_FOV : CAMERA_FOV;
-      camera.fov = THREE.MathUtils.lerp(camera.fov, desiredFov, cameraEase);
-      camera.updateProjectionMatrix();
-      camera.position.lerp(desiredCamera, cameraEase);
-      lookAtTarget.lerp(desiredLookAt, cameraEase);
-      camera.lookAt(lookAtTarget);
+      cameraController.follow({
+        frame: cameraFrame,
+        mode: sceneModeRef.current,
+        characterPosition: character.position,
+        focusPosition: computerFocusCamera,
+        focusTarget: computerFocusTarget,
+      });
       updateComputerScreenBounds();
 
       if (sceneModeRef.current === 'explore' && isHoveringComputer) {
@@ -798,17 +716,7 @@ export default function RoomScene() {
         setComputerHintScreenPosition({ x: 0, y: 0, visible: false });
       }
 
-      const halfWidth = ROOM.width / 2;
-      const halfDepth = ROOM.depth / 2;
-      const wallVisibilityMargin = 0.35;
-      walls.front.visible =
-        camera.position.z < halfDepth + wallVisibilityMargin;
-      walls.back.visible =
-        camera.position.z > -halfDepth - wallVisibilityMargin;
-      walls.right.visible =
-        camera.position.x < halfWidth + wallVisibilityMargin;
-      walls.left.visible =
-        camera.position.x > -halfWidth - wallVisibilityMargin;
+      cameraController.updateWallVisibility(walls, ROOM.width, ROOM.depth);
 
       lamp.intensity = 1.35 + 0.05 * Math.sin(clock.elapsedTime * 2.1);
 
@@ -848,6 +756,9 @@ export default function RoomScene() {
       disposeDeskModel();
       disposeWallTvModel();
       renderer.dispose();
+      if (cameraControllerRef.current === cameraController) {
+        cameraControllerRef.current = null;
+      }
     };
   }, [enterComputerMode, exitComputerMode]);
 
@@ -910,33 +821,11 @@ export default function RoomScene() {
         </div>
       ) : null}
       {sceneMode === 'explore' ? (
-        <div
-          className="absolute right-[clamp(16px,3vw,36px)] bottom-[clamp(16px,3vw,32px)] z-[3] flex gap-2 rounded-full border-2 border-[rgba(84,61,43,0.16)] bg-[rgba(255,246,223,0.78)] p-2 shadow-[0_14px_40px_rgba(67,42,28,0.18)] backdrop-blur-[10px]"
-          aria-label="Camera view controls">
-          <button
-            type="button"
-            className={controlBaseClass}
-            onClick={() => rotateView(1)}
-            aria-label="Rotate camera 90 degrees left">
-            {'<'}
-          </button>
-          <button
-            type="button"
-            className={`${controlBaseClass} ${
-              viewDirection === 0 ? activeControlClass : ''
-            }`}
-            onClick={() => setView(0)}
-            aria-label="Return to the default view">
-            o
-          </button>
-          <button
-            type="button"
-            className={controlBaseClass}
-            onClick={() => rotateView(-1)}
-            aria-label="Rotate camera 90 degrees right">
-            {'>'}
-          </button>
-        </div>
+        <RoomCameraControls
+          viewDirection={viewDirection}
+          onRotate={rotateView}
+          onReset={() => setView(0)}
+        />
       ) : null}
     </div>
   );
