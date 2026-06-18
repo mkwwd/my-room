@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import Image from 'next/image';
 
-const DESKTOP_UI_WIDTH = 1120;
-const DESKTOP_UI_HEIGHT = 630;
+export const DESKTOP_UI_WIDTH = 1120;
+export const DESKTOP_UI_HEIGHT = 630;
 const DESKTOP_TASKBAR_HEIGHT = 40;
 const DESKTOP_GRID_SIZE = 72;
 const DESKTOP_ICON_STORAGE_KEY = 'my-room.desktop-icon-positions.v4';
@@ -60,15 +60,6 @@ type GithubRepo = {
   forks_count: number;
   updated_at: string;
   fork: boolean;
-};
-
-export type ScreenBounds = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  clipPath: string;
-  visible: boolean;
 };
 
 const desktopIcons: DesktopIcon[] = [
@@ -457,11 +448,9 @@ function GithubWindow({
 }
 
 export default function ComputerDesktop({
-  bounds,
   isFocused,
   onClose,
 }: {
-  bounds: ScreenBounds;
   isFocused: boolean;
   onClose: () => void;
 }) {
@@ -623,25 +612,11 @@ export default function ComputerDesktop({
     }
   };
 
-  if (!bounds.visible) return null;
-
-  const scaleX = bounds.width / DESKTOP_UI_WIDTH;
-  const scaleY = bounds.height / DESKTOP_UI_HEIGHT;
-
   return (
     <section
-      className={`absolute z-[6] ${
+      className={`relative h-[630px] w-[1120px] overflow-hidden ${
         isFocused ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
-      style={{
-        left: `${bounds.x}px`,
-        top: `${bounds.y}px`,
-        width: `${DESKTOP_UI_WIDTH}px`,
-        height: `${DESKTOP_UI_HEIGHT}px`,
-        clipPath: bounds.clipPath,
-        transform: `scale(${scaleX}, ${scaleY})`,
-        transformOrigin: 'top left',
-      }}
       aria-label="Focused computer desktop">
       <div
         className="relative h-full w-full overflow-hidden bg-[#ad63ad]"

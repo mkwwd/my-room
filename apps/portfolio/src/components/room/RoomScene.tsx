@@ -4,8 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  CSS3DObject,
+  CSS3DRenderer,
+} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
-import ComputerDesktop, { type ScreenBounds } from './ComputerDesktop';
+import ComputerDesktop, {
+  DESKTOP_UI_HEIGHT,
+  DESKTOP_UI_WIDTH,
+} from './ComputerDesktop';
 import RoomCameraControls, {
   RoomCameraController,
   type ViewDirection,
@@ -45,9 +52,6 @@ type ScreenPosition = {
   x: number;
   y: number;
   visible: boolean;
-};
-type ScreenFrameRef = {
-  corners: THREE.Vector3[] | null;
 };
 
 function makeMaterial(color: string, roughness = 0.85, metalness = 0.02) {
@@ -182,7 +186,7 @@ function loadDeskModel(
   computerFocusCamera: THREE.Vector3,
   computerFocusTarget: THREE.Vector3,
   computerHintAnchor: THREE.Vector3,
-  computerScreenFrameRef: ScreenFrameRef,
+  computerScreen: CSS3DObject,
 ) {
   const loader = new GLTFLoader();
   const anchor = new THREE.Group();
@@ -204,41 +208,25 @@ function loadDeskModel(
     });
   };
 
-  const updateComputerScreenFrame = () => {
-    const halfScreenWidth = COMPUTER_SCREEN_WIDTH / 2;
-    const halfScreenHeight = COMPUTER_SCREEN_HEIGHT / 2;
-
+  const updateComputerScreenTransform = () => {
     anchor.updateMatrixWorld(true);
-    computerScreenFrameRef.corners = [
+    computerScreen.position.copy(
       anchor.localToWorld(
         new THREE.Vector3(
-          COMPUTER_SCREEN_CENTER_X - halfScreenWidth,
-          COMPUTER_SCREEN_CENTER_Y + halfScreenHeight,
+          COMPUTER_SCREEN_CENTER_X,
+          COMPUTER_SCREEN_CENTER_Y,
           COMPUTER_SCREEN_CENTER_Z,
         ),
       ),
-      anchor.localToWorld(
-        new THREE.Vector3(
-          COMPUTER_SCREEN_CENTER_X + halfScreenWidth,
-          COMPUTER_SCREEN_CENTER_Y + halfScreenHeight,
-          COMPUTER_SCREEN_CENTER_Z,
-        ),
-      ),
-      anchor.localToWorld(
-        new THREE.Vector3(
-          COMPUTER_SCREEN_CENTER_X - halfScreenWidth,
-          COMPUTER_SCREEN_CENTER_Y - halfScreenHeight,
-          COMPUTER_SCREEN_CENTER_Z,
-        ),
-      ),
-      anchor.localToWorld(
-        new THREE.Vector3(
-          COMPUTER_SCREEN_CENTER_X + halfScreenWidth,
-          COMPUTER_SCREEN_CENTER_Y - halfScreenHeight,
-          COMPUTER_SCREEN_CENTER_Z,
-        ),
-      ),
-    ];
+    );
+    anchor.getWorldQuaternion(computerScreen.quaternion);
+    computerScreen.scale.set(
+      COMPUTER_SCREEN_WIDTH / DESKTOP_UI_WIDTH,
+      COMPUTER_SCREEN_HEIGHT / DESKTOP_UI_HEIGHT,
+      1,
+    );
+    computerScreen.userData.isReady = true;
+    computerScreen.visible = true;
   };
 
   loader.load(DESK_MODEL_PATH, (gltf) => {
@@ -270,7 +258,7 @@ function loadDeskModel(
     computerPickTargets.push(desktopAnchor);
 
     anchor.updateMatrixWorld(true);
-    updateComputerScreenFrame();
+    updateComputerScreenTransform();
     computerHintAnchor.copy(
       anchor.localToWorld(
         new THREE.Vector3(-0.08, DESK_SURFACE_HEIGHT + 1.42, -0.02),
@@ -299,7 +287,8 @@ function loadDeskModel(
   return () => {
     isDisposed = true;
     computerPickTargets.length = 0;
-    computerScreenFrameRef.corners = null;
+    computerScreen.userData.isReady = false;
+    computerScreen.visible = false;
     scene.remove(anchor);
   };
 }
@@ -335,12 +324,10 @@ function loadWallTvModel(scene: THREE.Scene) {
   };
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
 export default function RoomScene() {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const computerDesktopHostRef = useRef<HTMLDivElement | null>(null);
+  const computerDesktopParkingRef = useRef<HTMLDivElement | null>(null);
   const cameraControllerRef = useRef<RoomCameraController | null>(null);
   const sceneModeRef = useRef<SceneMode>('explore');
   const [viewDirection, setViewDirection] = useState<ViewDirection>(0);
@@ -352,16 +339,6 @@ export default function RoomScene() {
       y: 0,
       visible: false,
     });
-  const [computerScreenBounds, setComputerScreenBounds] =
-    useState<ScreenBounds>({
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-      clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-      visible: false,
-    });
-
   const setView = (nextViewDirection: ViewDirection) => {
     cameraControllerRef.current?.setView(nextViewDirection);
     setViewDirection(nextViewDirection);
@@ -387,7 +364,8 @@ export default function RoomScene() {
 
   useEffect(() => {
     const mount = mountRef.current;
-    if (!mount) return;
+    const computerDesktopHost = computerDesktopHostRef.current;
+    if (!mount || !computerDesktopHost) return;
 
     const scene = new THREE.Scene();
     const skyColor = '#c9ecff';
@@ -398,7 +376,23 @@ export default function RoomScene() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.inset = '0';
     mount.appendChild(renderer.domElement);
+
+    const cssScene = new THREE.Scene();
+    const cssRenderer = new CSS3DRenderer();
+    cssRenderer.setSize(mount.clientWidth, Math.max(mount.clientHeight, 1));
+    cssRenderer.domElement.style.position = 'absolute';
+    cssRenderer.domElement.style.inset = '0';
+    cssRenderer.domElement.style.pointerEvents = 'none';
+    mount.appendChild(cssRenderer.domElement);
+
+    const computerScreen = new CSS3DObject(computerDesktopHost);
+    computerScreen.visible = false;
+    computerScreen.userData.isReady = false;
+    computerScreen.element.style.pointerEvents = 'none';
+    cssScene.add(computerScreen);
 
     const cameraController = new RoomCameraController(
       mount.clientWidth / Math.max(mount.clientHeight, 1),
@@ -424,14 +418,13 @@ export default function RoomScene() {
     const computerFocusCamera = new THREE.Vector3();
     const computerFocusTarget = new THREE.Vector3();
     const computerHintAnchor = new THREE.Vector3();
-    const computerScreenFrameRef: ScreenFrameRef = { corners: null };
     const disposeDeskModel = loadDeskModel(
       scene,
       computerPickTargets,
       computerFocusCamera,
       computerFocusTarget,
       computerHintAnchor,
-      computerScreenFrameRef,
+      computerScreen,
     );
     const disposeWallTvModel = loadWallTvModel(scene);
 
@@ -440,16 +433,10 @@ export default function RoomScene() {
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const clock = new THREE.Clock();
+    const computerScreenNormal = new THREE.Vector3();
+    const computerToCamera = new THREE.Vector3();
     let isHoveringComputer = false;
     let lastHintPosition: ScreenPosition = { x: 0, y: 0, visible: false };
-    let lastScreenBounds: ScreenBounds = {
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-      clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-      visible: false,
-    };
     let frame = 0;
 
     const setComputerHoverState = (nextIsHovering: boolean) => {
@@ -478,106 +465,12 @@ export default function RoomScene() {
       }
     };
 
-    const setComputerScreenBoundsState = (nextBounds: ScreenBounds) => {
-      const roundedBounds = {
-        x: Math.round(nextBounds.x),
-        y: Math.round(nextBounds.y),
-        width: Math.round(nextBounds.width),
-        height: Math.round(nextBounds.height),
-        clipPath: nextBounds.clipPath,
-        visible: nextBounds.visible,
-      };
-      const hasChanged =
-        roundedBounds.visible !== lastScreenBounds.visible ||
-        roundedBounds.clipPath !== lastScreenBounds.clipPath ||
-        Math.abs(roundedBounds.x - lastScreenBounds.x) > 1 ||
-        Math.abs(roundedBounds.y - lastScreenBounds.y) > 1 ||
-        Math.abs(roundedBounds.width - lastScreenBounds.width) > 1 ||
-        Math.abs(roundedBounds.height - lastScreenBounds.height) > 1;
-
-      if (hasChanged) {
-        lastScreenBounds = roundedBounds;
-        setComputerScreenBounds(roundedBounds);
-      }
-    };
-
-    const updateComputerScreenBounds = () => {
-      if (!computerScreenFrameRef.corners) {
-        setComputerScreenBoundsState({
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0,
-          clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-          visible: false,
-        });
-        return;
-      }
-
-      const projectedCorners = computerScreenFrameRef.corners.map((corner) => {
-        const projectedCorner = corner.clone().project(camera);
-
-        return {
-          x: (projectedCorner.x * 0.5 + 0.5) * mount.clientWidth,
-          y: (-projectedCorner.y * 0.5 + 0.5) * mount.clientHeight,
-          z: projectedCorner.z,
-        };
-      });
-
-      let minX = Number.POSITIVE_INFINITY;
-      let minY = Number.POSITIVE_INFINITY;
-      let maxX = Number.NEGATIVE_INFINITY;
-      let maxY = Number.NEGATIVE_INFINITY;
-      let isVisible = false;
-
-      projectedCorners.forEach((corner) => {
-        isVisible = isVisible || (corner.z > -1 && corner.z < 1);
-
-        minX = Math.min(minX, corner.x);
-        minY = Math.min(minY, corner.y);
-        maxX = Math.max(maxX, corner.x);
-        maxY = Math.max(maxY, corner.y);
-      });
-
-      const rawWidth = maxX - minX;
-      const rawHeight = maxY - minY;
-      const insetLeft = rawWidth * 0.006;
-      const insetTop = rawHeight * 0.008;
-      const insetRight = rawWidth * 0.006;
-      const insetBottom = rawHeight * 0.008;
-      const boundsX = minX + insetLeft;
-      const boundsY = minY + insetTop;
-      const boundsWidth = Math.max(rawWidth - insetLeft - insetRight, 0);
-      const boundsHeight = Math.max(rawHeight - insetTop - insetBottom, 0);
-
-      const getClipPoint = (corner: { x: number; y: number }) => {
-        const x = clamp(((corner.x - boundsX) / boundsWidth) * 100, 0, 100);
-        const y = clamp(((corner.y - boundsY) / boundsHeight) * 100, 0, 100);
-
-        return `${x.toFixed(2)}% ${y.toFixed(2)}%`;
-      };
-
-      const clipPath = `polygon(${getClipPoint(
-        projectedCorners[0],
-      )}, ${getClipPoint(projectedCorners[1])}, ${getClipPoint(
-        projectedCorners[3],
-      )}, ${getClipPoint(projectedCorners[2])})`;
-
-      setComputerScreenBoundsState({
-        x: boundsX,
-        y: boundsY,
-        width: boundsWidth,
-        height: boundsHeight,
-        clipPath,
-        visible: isVisible && rawWidth > 24 && rawHeight > 18,
-      });
-    };
-
     const resize = () => {
       const width = mount.clientWidth;
       const height = Math.max(mount.clientHeight, 1);
       cameraController.resize(width, height);
       renderer.setSize(width, height);
+      cssRenderer.setSize(width, height);
     };
 
     const clampTarget = () => {
@@ -701,7 +594,18 @@ export default function RoomScene() {
         focusPosition: computerFocusCamera,
         focusTarget: computerFocusTarget,
       });
-      updateComputerScreenBounds();
+
+      if (computerScreen.userData.isReady) {
+        computerScreenNormal
+          .set(0, 0, 1)
+          .applyQuaternion(computerScreen.quaternion);
+        computerToCamera
+          .copy(camera.position)
+          .sub(computerScreen.position)
+          .normalize();
+        computerScreen.visible =
+          computerScreenNormal.dot(computerToCamera) > 0.02;
+      }
 
       if (sceneModeRef.current === 'explore' && isHoveringComputer) {
         const projectedHintPosition = computerHintAnchor
@@ -721,6 +625,7 @@ export default function RoomScene() {
       lamp.intensity = 1.35 + 0.05 * Math.sin(clock.elapsedTime * 2.1);
 
       renderer.render(scene, camera);
+      cssRenderer.render(cssScene, camera);
       frame = requestAnimationFrame(animate);
     };
 
@@ -743,6 +648,9 @@ export default function RoomScene() {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('resize', resize);
       mount.removeChild(renderer.domElement);
+      cssScene.remove(computerScreen);
+      mount.removeChild(cssRenderer.domElement);
+      computerDesktopParkingRef.current?.appendChild(computerDesktopHost);
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose();
@@ -768,6 +676,25 @@ export default function RoomScene() {
         className="absolute inset-0 [&_canvas]:block [&_canvas]:h-full [&_canvas]:w-full"
         ref={mountRef}
       />
+      <div
+        className="hidden"
+        ref={computerDesktopParkingRef}
+        aria-hidden="true">
+        <div
+          ref={computerDesktopHostRef}
+          style={{
+            width: `${DESKTOP_UI_WIDTH}px`,
+            height: `${DESKTOP_UI_HEIGHT}px`,
+            overflow: 'hidden',
+            backfaceVisibility: 'hidden',
+            pointerEvents: 'none',
+          }}>
+          <ComputerDesktop
+            isFocused={sceneMode === 'computer'}
+            onClose={exitComputerMode}
+          />
+        </div>
+      </div>
       {sceneMode === 'explore' ? (
         <section
           className="pointer-events-none absolute top-[clamp(16px,3vw,34px)] left-[clamp(16px,3vw,36px)] z-[2] grid gap-1.5 text-[#fff9e9] [text-shadow:0_2px_12px_rgba(50,34,24,0.42)]"
@@ -793,11 +720,6 @@ export default function RoomScene() {
           <span className="absolute top-full left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-[5px] rotate-45 border-r-2 border-b-2 border-[#4b382c]/20 bg-[#fff6df]/95" />
         </div>
       ) : null}
-      <ComputerDesktop
-        bounds={computerScreenBounds}
-        isFocused={sceneMode === 'computer'}
-        onClose={exitComputerMode}
-      />
       {sceneMode === 'computer' ? (
         <div className="pointer-events-none absolute inset-0 z-[5]">
           <button
