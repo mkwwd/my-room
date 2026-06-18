@@ -15,8 +15,8 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
+      "apps/portfolio/node_modules/.bin/eslint.cmd --config apps/portfolio/eslint.config.mjs --fix",
+      "apps/portfolio/node_modules/.bin/prettier.cmd --write"
     ]
   },
   "devDependencies": {
