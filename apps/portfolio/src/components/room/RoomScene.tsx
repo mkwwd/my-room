@@ -15,15 +15,11 @@ import RoomCameraControls, {
   type ViewDirection,
 } from './RoomCamera';
 import RoomCharacterController from './RoomCharacter';
-import { ROOM } from './roomConfig';
+import { ROOM, type SceneMode } from './roomConfig';
 import RoomEnvironment from './RoomEnvironment';
-
-type SceneMode = 'explore' | 'computer';
-type ScreenPosition = {
-  x: number;
-  y: number;
-  visible: boolean;
-};
+import RoomInteractionController, {
+  type ScreenPosition,
+} from './RoomInteractionController';
 
 export default function RoomScene() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -109,38 +105,20 @@ export default function RoomScene() {
     const character = characterController.object;
     scene.add(character);
 
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
     const clock = new THREE.Clock();
-    let isHoveringComputer = false;
-    let lastHintPosition: ScreenPosition = { x: 0, y: 0, visible: false };
     let frame = 0;
-
-    const setComputerHoverState = (nextIsHovering: boolean) => {
-      if (isHoveringComputer === nextIsHovering) return;
-
-      isHoveringComputer = nextIsHovering;
-      setIsComputerHovered(nextIsHovering);
-    };
-
-    const setComputerHintScreenPosition = (nextPosition: ScreenPosition) => {
-      const roundedPosition = {
-        x: Math.round(nextPosition.x),
-        y: Math.round(nextPosition.y),
-        visible: nextPosition.visible,
-      };
-      const hasMoved =
-        Math.abs(roundedPosition.x - lastHintPosition.x) > 1 ||
-        Math.abs(roundedPosition.y - lastHintPosition.y) > 1;
-
-      if (
-        roundedPosition.visible !== lastHintPosition.visible ||
-        (roundedPosition.visible && hasMoved)
-      ) {
-        lastHintPosition = roundedPosition;
-        setComputerHintPosition(roundedPosition);
-      }
-    };
+    const interactionController = new RoomInteractionController({
+      canvas: renderer.domElement,
+      camera,
+      computerStation,
+      environment,
+      character: characterController,
+      getSceneMode: () => sceneModeRef.current,
+      onEnterComputer: enterComputerMode,
+      onExitComputer: exitComputerMode,
+      onComputerHoverChange: setIsComputerHovered,
+      onHintPositionChange: setComputerHintPosition,
+    });
 
     const resize = () => {
       const width = mount.clientWidth;
@@ -148,69 +126,6 @@ export default function RoomScene() {
       cameraController.resize(width, height);
       renderer.setSize(width, height);
       cssRenderer.setSize(width, height);
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      renderer.domElement.focus();
-
-      if (sceneModeRef.current === 'computer') {
-        return;
-      }
-
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-
-      if (computerStation.isPointerOver(raycaster)) {
-        setComputerHoverState(false);
-        enterComputerMode();
-        return;
-      }
-
-      const floorHit = raycaster.intersectObjects(
-        environment.floorPickTargets,
-        false,
-      )[0];
-      if (!floorHit) return;
-
-      characterController.moveTo(floorHit.point);
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (sceneModeRef.current === 'computer') {
-        renderer.domElement.style.cursor = 'default';
-        setComputerHoverState(false);
-        return;
-      }
-
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-
-      const isHoveringComputer = computerStation.isPointerOver(raycaster);
-      renderer.domElement.style.cursor = isHoveringComputer
-        ? 'pointer'
-        : 'default';
-      setComputerHoverState(isHoveringComputer);
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.key === 'Escape' || event.key === 'Backspace') &&
-        sceneModeRef.current === 'computer'
-      ) {
-        event.preventDefault();
-        exitComputerMode();
-        return;
-      }
-
-      characterController.pressKey(event.key);
-    };
-
-    const onKeyUp = (event: KeyboardEvent) => {
-      characterController.releaseKey(event.key);
     };
 
     const animate = () => {
@@ -234,18 +149,7 @@ export default function RoomScene() {
       });
       computerStation.update(camera);
 
-      if (sceneModeRef.current === 'explore' && isHoveringComputer) {
-        const projectedHintPosition = computerStation.hintAnchor
-          .clone()
-          .project(camera);
-        setComputerHintScreenPosition({
-          x: (projectedHintPosition.x * 0.5 + 0.5) * mount.clientWidth,
-          y: (-projectedHintPosition.y * 0.5 + 0.5) * mount.clientHeight,
-          visible: projectedHintPosition.z > -1 && projectedHintPosition.z < 1,
-        });
-      } else {
-        setComputerHintScreenPosition({ x: 0, y: 0, visible: false });
-      }
+      interactionController.updateHint(mount.clientWidth, mount.clientHeight);
 
       cameraController.updateWallVisibility(
         environment.walls,
@@ -262,22 +166,12 @@ export default function RoomScene() {
     resize();
     animate();
 
-    renderer.domElement.tabIndex = 0;
-    renderer.domElement.addEventListener('pointerdown', onPointerDown);
-    renderer.domElement.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
     window.addEventListener('resize', resize);
 
     return () => {
       cancelAnimationFrame(frame);
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      renderer.domElement.removeEventListener('pointermove', onPointerMove);
-      renderer.domElement.style.cursor = 'default';
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('resize', resize);
-      characterController.clearInput();
+      interactionController.dispose();
       mount.removeChild(renderer.domElement);
       mount.removeChild(cssRenderer.domElement);
       scene.traverse((object) => {

@@ -1,3 +1,5 @@
+export type SceneMode = 'explore' | 'computer';
+
 export const ROOM = {
   width: 13.4,
   depth: 20,
