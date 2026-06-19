@@ -3,30 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import {
-  CSS3DObject,
-  CSS3DRenderer,
-} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
 import ComputerDesktop, {
   DESKTOP_UI_HEIGHT,
   DESKTOP_UI_WIDTH,
 } from './ComputerDesktop';
+import ComputerStation from './ComputerStation';
 import RoomCameraControls, {
   RoomCameraController,
   type ViewDirection,
 } from './RoomCamera';
 import RoomCharacterController from './RoomCharacter';
-import {
-  COMPUTER_SCREEN,
-  DESK_SURFACE_HEIGHT,
-  MODEL_TARGET_WIDTH,
-  ROOM,
-  ROOM_MODELS,
-} from './roomConfig';
+import { ROOM } from './roomConfig';
 import RoomEnvironment from './RoomEnvironment';
-import { prepareModel } from './RoomModelUtils';
 
 type SceneMode = 'explore' | 'computer';
 type ScreenPosition = {
@@ -34,109 +24,6 @@ type ScreenPosition = {
   y: number;
   visible: boolean;
 };
-
-function loadDeskModel(
-  scene: THREE.Scene,
-  computerPickTargets: THREE.Object3D[],
-  computerFocusCamera: THREE.Vector3,
-  computerFocusTarget: THREE.Vector3,
-  computerHintAnchor: THREE.Vector3,
-  computerScreen: CSS3DObject,
-) {
-  const loader = new GLTFLoader();
-  const anchor = new THREE.Group();
-  const leftWallInnerX = -ROOM.width / 2 + 0.88;
-
-  anchor.position.set(leftWallInnerX, 0, 2);
-  anchor.rotation.y = Math.PI / 2;
-  scene.add(anchor);
-
-  let isDisposed = false;
-
-  const updateComputerScreenTransform = () => {
-    anchor.updateMatrixWorld(true);
-    computerScreen.position.copy(
-      anchor.localToWorld(
-        new THREE.Vector3(
-          COMPUTER_SCREEN.centerX,
-          COMPUTER_SCREEN.centerY,
-          COMPUTER_SCREEN.centerZ,
-        ),
-      ),
-    );
-    anchor.getWorldQuaternion(computerScreen.quaternion);
-    computerScreen.scale.set(
-      COMPUTER_SCREEN.width / DESKTOP_UI_WIDTH,
-      COMPUTER_SCREEN.height / DESKTOP_UI_HEIGHT,
-      1,
-    );
-    computerScreen.userData.isReady = true;
-    computerScreen.visible = true;
-  };
-
-  loader.load(ROOM_MODELS.desk, (gltf) => {
-    if (isDisposed) return;
-
-    const desk = gltf.scene;
-    prepareModel(desk, MODEL_TARGET_WIDTH.desk);
-    anchor.add(desk);
-    computerPickTargets.push(desk);
-    anchor.updateMatrixWorld(true);
-    computerHintAnchor.copy(
-      anchor.localToWorld(
-        new THREE.Vector3(-0.08, DESK_SURFACE_HEIGHT + 1.42, -0.02),
-      ),
-    );
-  });
-
-  loader.load(ROOM_MODELS.desktop, (gltf) => {
-    if (isDisposed) return;
-
-    const desktop = gltf.scene;
-    const desktopAnchor = new THREE.Group();
-
-    prepareModel(desktop, MODEL_TARGET_WIDTH.desktop);
-    desktopAnchor.position.set(-0.1, DESK_SURFACE_HEIGHT, -0.01);
-    desktopAnchor.rotation.y = 0;
-    desktopAnchor.add(desktop);
-    anchor.add(desktopAnchor);
-    computerPickTargets.push(desktopAnchor);
-
-    anchor.updateMatrixWorld(true);
-    updateComputerScreenTransform();
-    computerHintAnchor.copy(
-      anchor.localToWorld(
-        new THREE.Vector3(-0.08, DESK_SURFACE_HEIGHT + 1.42, -0.02),
-      ),
-    );
-    computerFocusCamera.copy(
-      anchor.localToWorld(
-        new THREE.Vector3(
-          COMPUTER_SCREEN.centerX,
-          COMPUTER_SCREEN.centerY,
-          1.15,
-        ),
-      ),
-    );
-    computerFocusTarget.copy(
-      anchor.localToWorld(
-        new THREE.Vector3(
-          COMPUTER_SCREEN.centerX,
-          COMPUTER_SCREEN.centerY,
-          COMPUTER_SCREEN.centerZ,
-        ),
-      ),
-    );
-  });
-
-  return () => {
-    isDisposed = true;
-    computerPickTargets.length = 0;
-    computerScreen.userData.isReady = false;
-    computerScreen.visible = false;
-    scene.remove(anchor);
-  };
-}
 
 export default function RoomScene() {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -200,11 +87,11 @@ export default function RoomScene() {
     cssRenderer.domElement.style.pointerEvents = 'none';
     mount.appendChild(cssRenderer.domElement);
 
-    const computerScreen = new CSS3DObject(computerDesktopHost);
-    computerScreen.visible = false;
-    computerScreen.userData.isReady = false;
-    computerScreen.element.style.pointerEvents = 'none';
-    cssScene.add(computerScreen);
+    const computerStation = new ComputerStation(
+      scene,
+      cssScene,
+      computerDesktopHost,
+    );
 
     const cameraController = new RoomCameraController(
       mount.clientWidth / Math.max(mount.clientHeight, 1),
@@ -222,23 +109,9 @@ export default function RoomScene() {
     const character = characterController.object;
     scene.add(character);
 
-    const computerPickTargets: THREE.Object3D[] = [];
-    const computerFocusCamera = new THREE.Vector3();
-    const computerFocusTarget = new THREE.Vector3();
-    const computerHintAnchor = new THREE.Vector3();
-    const disposeDeskModel = loadDeskModel(
-      scene,
-      computerPickTargets,
-      computerFocusCamera,
-      computerFocusTarget,
-      computerHintAnchor,
-      computerScreen,
-    );
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const clock = new THREE.Clock();
-    const computerScreenNormal = new THREE.Vector3();
-    const computerToCamera = new THREE.Vector3();
     let isHoveringComputer = false;
     let lastHintPosition: ScreenPosition = { x: 0, y: 0, visible: false };
     let frame = 0;
@@ -289,11 +162,7 @@ export default function RoomScene() {
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
 
-      const computerHit = raycaster.intersectObjects(
-        computerPickTargets,
-        true,
-      )[0];
-      if (computerHit) {
+      if (computerStation.isPointerOver(raycaster)) {
         setComputerHoverState(false);
         enterComputerMode();
         return;
@@ -320,8 +189,7 @@ export default function RoomScene() {
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
 
-      const isHoveringComputer =
-        raycaster.intersectObjects(computerPickTargets, true).length > 0;
+      const isHoveringComputer = computerStation.isPointerOver(raycaster);
       renderer.domElement.style.cursor = isHoveringComputer
         ? 'pointer'
         : 'default';
@@ -361,24 +229,13 @@ export default function RoomScene() {
         frame: cameraFrame,
         mode: sceneModeRef.current,
         characterPosition: character.position,
-        focusPosition: computerFocusCamera,
-        focusTarget: computerFocusTarget,
+        focusPosition: computerStation.focusPosition,
+        focusTarget: computerStation.focusTarget,
       });
-
-      if (computerScreen.userData.isReady) {
-        computerScreenNormal
-          .set(0, 0, 1)
-          .applyQuaternion(computerScreen.quaternion);
-        computerToCamera
-          .copy(camera.position)
-          .sub(computerScreen.position)
-          .normalize();
-        computerScreen.visible =
-          computerScreenNormal.dot(computerToCamera) > 0.02;
-      }
+      computerStation.update(camera);
 
       if (sceneModeRef.current === 'explore' && isHoveringComputer) {
-        const projectedHintPosition = computerHintAnchor
+        const projectedHintPosition = computerStation.hintAnchor
           .clone()
           .project(camera);
         setComputerHintScreenPosition({
@@ -422,9 +279,7 @@ export default function RoomScene() {
       window.removeEventListener('resize', resize);
       characterController.clearInput();
       mount.removeChild(renderer.domElement);
-      cssScene.remove(computerScreen);
       mount.removeChild(cssRenderer.domElement);
-      computerDesktopParkingRef.current?.appendChild(computerDesktopHost);
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose();
@@ -435,8 +290,9 @@ export default function RoomScene() {
           }
         }
       });
-      disposeDeskModel();
+      computerStation.dispose();
       environment.dispose();
+      computerDesktopParkingRef.current?.appendChild(computerDesktopHost);
       renderer.dispose();
       if (cameraControllerRef.current === cameraController) {
         cameraControllerRef.current = null;
