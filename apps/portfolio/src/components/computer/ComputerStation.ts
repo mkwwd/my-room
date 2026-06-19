@@ -2,15 +2,16 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
-import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './ComputerDesktop';
 import {
   COMPUTER_SCREEN,
   DESK_SURFACE_HEIGHT,
   MODEL_TARGET_WIDTH,
   ROOM,
   ROOM_MODELS,
-} from './roomConfig';
-import { prepareModel } from './RoomModelUtils';
+} from '../room/roomConfig';
+import { prepareModel } from '../room/RoomModelUtils';
+
+import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './ComputerDesktop';
 
 export default class ComputerStation {
   readonly focusPosition = new THREE.Vector3();

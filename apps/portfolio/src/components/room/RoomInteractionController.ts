@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
-import ComputerStation from './ComputerStation';
+import ComputerStation from '../computer/ComputerStation';
+
 import type RoomCharacterController from './RoomCharacter';
 import type { SceneMode } from './roomConfig';
 import type RoomEnvironment from './RoomEnvironment';

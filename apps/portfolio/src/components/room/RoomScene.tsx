@@ -8,8 +8,9 @@ import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import ComputerDesktop, {
   DESKTOP_UI_HEIGHT,
   DESKTOP_UI_WIDTH,
-} from './ComputerDesktop';
-import ComputerStation from './ComputerStation';
+} from '../computer/ComputerDesktop';
+import ComputerStation from '../computer/ComputerStation';
+
 import { RoomCameraController, type ViewDirection } from './RoomCamera';
 import RoomCharacterController from './RoomCharacter';
 import { ROOM, type SceneMode } from './roomConfig';
