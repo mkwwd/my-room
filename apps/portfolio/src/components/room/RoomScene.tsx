@@ -17,6 +17,7 @@ import RoomCameraControls, {
   RoomCameraController,
   type ViewDirection,
 } from './RoomCamera';
+import RoomCharacterController from './RoomCharacter';
 
 const ROOM = {
   width: 13.4,
@@ -120,48 +121,6 @@ function buildRoom(
   );
 
   return { back, front, left, right };
-}
-
-function buildCharacter() {
-  const character = new THREE.Group();
-  const skin = makeMaterial('#f2c7a2');
-  const shirt = makeMaterial('#f4a261');
-  const hat = makeMaterial('#e9d18b');
-  const pants = makeMaterial('#8a6a53');
-
-  const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.22, 0.45, 8, 16),
-    shirt,
-  );
-  body.position.y = 0.58;
-  body.castShadow = true;
-  character.add(body);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 24, 16), skin);
-  head.position.y = 1.02;
-  head.castShadow = true;
-  character.add(head);
-
-  const brim = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.42, 0.42, 0.045, 32),
-    hat,
-  );
-  brim.position.y = 1.16;
-  brim.castShadow = true;
-  character.add(brim);
-
-  const crown = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.26, 0.34, 0.18, 28),
-    hat,
-  );
-  crown.position.y = 1.25;
-  crown.castShadow = true;
-  character.add(crown);
-
-  addBox(character, [0.16, 0.28, 0.16], [-0.12, 0.18, 0], pants);
-  addBox(character, [0.16, 0.28, 0.16], [0.12, 0.18, 0], pants);
-
-  return character;
 }
 
 function normalizeModelToGround(object: THREE.Object3D, targetWidth: number) {
@@ -410,8 +369,12 @@ export default function RoomScene() {
     const floorPickTargets: THREE.Object3D[] = [];
     const walls = buildRoom(scene, floorPickTargets);
 
-    const character = buildCharacter();
-    character.position.set(0, 0, 0.25);
+    const characterController = new RoomCharacterController({
+      limitX: ROOM.playerLimitX,
+      limitZ: ROOM.playerLimitZ,
+      initialPosition: [0, 0, 0.25],
+    });
+    const character = characterController.object;
     scene.add(character);
 
     const computerPickTargets: THREE.Object3D[] = [];
@@ -428,8 +391,6 @@ export default function RoomScene() {
     );
     const disposeWallTvModel = loadWallTvModel(scene);
 
-    const keys = new Set<string>();
-    const targetPosition = new THREE.Vector3(0, 0, 0.25);
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const clock = new THREE.Clock();
@@ -473,19 +434,6 @@ export default function RoomScene() {
       cssRenderer.setSize(width, height);
     };
 
-    const clampTarget = () => {
-      targetPosition.x = THREE.MathUtils.clamp(
-        targetPosition.x,
-        -ROOM.playerLimitX,
-        ROOM.playerLimitX,
-      );
-      targetPosition.z = THREE.MathUtils.clamp(
-        targetPosition.z,
-        -ROOM.playerLimitZ,
-        ROOM.playerLimitZ,
-      );
-    };
-
     const onPointerDown = (event: PointerEvent) => {
       renderer.domElement.focus();
 
@@ -511,9 +459,7 @@ export default function RoomScene() {
       const floorHit = raycaster.intersectObjects(floorPickTargets, false)[0];
       if (!floorHit) return;
 
-      targetPosition.copy(floorHit.point);
-      targetPosition.y = 0;
-      clampTarget();
+      characterController.moveTo(floorHit.point);
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -546,46 +492,24 @@ export default function RoomScene() {
         return;
       }
 
-      keys.add(event.key.toLowerCase());
+      characterController.pressKey(event.key);
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      keys.delete(event.key.toLowerCase());
+      characterController.releaseKey(event.key);
     };
 
     const animate = () => {
       const delta = Math.min(clock.getDelta(), 0.04);
       const cameraFrame = cameraController.beginFrame(delta);
       const { forward: viewForward, right: viewRight } = cameraFrame;
-      const moveRight =
-        (keys.has('d') || keys.has('arrowright') ? 1 : 0) -
-        (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
-      const moveForward =
-        (keys.has('w') || keys.has('arrowup') ? 1 : 0) -
-        (keys.has('s') || keys.has('arrowdown') ? 1 : 0);
-
-      const direction = new THREE.Vector3()
-        .addScaledVector(viewRight, moveRight)
-        .addScaledVector(viewForward, moveForward);
-
-      if (sceneModeRef.current === 'explore' && direction.lengthSq() > 0) {
-        direction.normalize();
-        targetPosition.add(direction.multiplyScalar(3.1 * delta));
-        clampTarget();
-      }
-
-      const before = character.position.clone();
-      character.position.lerp(targetPosition, 1 - Math.pow(0.001, delta));
-      const movement = character.position.clone().sub(before);
-
-      if (movement.lengthSq() > 0.0002) {
-        character.rotation.y = Math.atan2(movement.x, movement.z);
-      }
-
-      character.position.y =
-        movement.lengthSq() > 0.0002
-          ? 0.025 * Math.sin(clock.elapsedTime * 10)
-          : 0;
+      characterController.update({
+        delta,
+        elapsedTime: clock.elapsedTime,
+        movementEnabled: sceneModeRef.current === 'explore',
+        viewForward,
+        viewRight,
+      });
 
       cameraController.follow({
         frame: cameraFrame,
@@ -647,6 +571,7 @@ export default function RoomScene() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('resize', resize);
+      characterController.clearInput();
       mount.removeChild(renderer.domElement);
       cssScene.remove(computerScreen);
       mount.removeChild(cssRenderer.domElement);
