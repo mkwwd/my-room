@@ -18,126 +18,22 @@ import RoomCameraControls, {
   type ViewDirection,
 } from './RoomCamera';
 import RoomCharacterController from './RoomCharacter';
+import {
+  COMPUTER_SCREEN,
+  DESK_SURFACE_HEIGHT,
+  MODEL_TARGET_WIDTH,
+  ROOM,
+  ROOM_MODELS,
+} from './roomConfig';
+import RoomEnvironment from './RoomEnvironment';
+import { prepareModel } from './RoomModelUtils';
 
-const ROOM = {
-  width: 13.4,
-  depth: 20,
-  wallHeight: 8,
-  playerLimitX: 5.25,
-  playerLimitZ: 8.75,
-};
-
-const WALL_THICKNESS = 0.32;
-const DESK_MODEL_PATH = '/desk1.glb';
-const DESKTOP_MODEL_PATH = '/desktop.glb';
-const TV_MODEL_PATH = '/tv.glb';
-const DESK_TARGET_WIDTH = 3.1;
-const DESKTOP_TARGET_WIDTH = 2;
-const DESK_SURFACE_HEIGHT = 1.71;
-const TV_TARGET_WIDTH = 5.4;
-const TV_BOTTOM_HEIGHT = 2.28;
-const COMPUTER_SCREEN_CENTER_X = -0.27;
-const COMPUTER_SCREEN_CENTER_Y = DESK_SURFACE_HEIGHT + 0.92;
-const COMPUTER_SCREEN_CENTER_Z = -0.35;
-const COMPUTER_SCREEN_WIDTH = 1.42;
-const COMPUTER_SCREEN_HEIGHT = 0.76;
-
-type RoomWalls = {
-  back: THREE.Mesh;
-  front: THREE.Mesh;
-  left: THREE.Mesh;
-  right: THREE.Mesh;
-};
 type SceneMode = 'explore' | 'computer';
 type ScreenPosition = {
   x: number;
   y: number;
   visible: boolean;
 };
-
-function makeMaterial(color: string, roughness = 0.85, metalness = 0.02) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness,
-    metalness,
-  });
-}
-
-function addBox(
-  parent: THREE.Object3D,
-  size: [number, number, number],
-  position: [number, number, number],
-  material: THREE.Material,
-) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
-  mesh.position.set(...position);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
-
-function buildRoom(
-  scene: THREE.Scene,
-  floorPickTargets: THREE.Object3D[],
-): RoomWalls {
-  const floorMaterial = makeMaterial('#ffffff');
-  const wallMaterial = makeMaterial('#e7f7ff');
-  const halfWidth = ROOM.width / 2;
-  const halfDepth = ROOM.depth / 2;
-  const wallY = ROOM.wallHeight / 2;
-
-  const floor = addBox(
-    scene,
-    [ROOM.width, 0.22, ROOM.depth],
-    [0, -0.12, 0],
-    floorMaterial,
-  );
-  floorPickTargets.push(floor);
-
-  const back = addBox(
-    scene,
-    [ROOM.width + WALL_THICKNESS * 2, ROOM.wallHeight, WALL_THICKNESS],
-    [0, wallY, -halfDepth - WALL_THICKNESS / 2],
-    wallMaterial,
-  );
-  const front = addBox(
-    scene,
-    [ROOM.width + WALL_THICKNESS * 2, ROOM.wallHeight, WALL_THICKNESS],
-    [0, wallY, halfDepth + WALL_THICKNESS / 2],
-    wallMaterial.clone(),
-  );
-  const left = addBox(
-    scene,
-    [WALL_THICKNESS, ROOM.wallHeight, ROOM.depth + WALL_THICKNESS],
-    [-halfWidth - WALL_THICKNESS / 2, wallY, -WALL_THICKNESS / 2],
-    wallMaterial,
-  );
-  const right = addBox(
-    scene,
-    [WALL_THICKNESS, ROOM.wallHeight, ROOM.depth + WALL_THICKNESS],
-    [halfWidth + WALL_THICKNESS / 2, wallY, -WALL_THICKNESS / 2],
-    wallMaterial.clone(),
-  );
-
-  return { back, front, left, right };
-}
-
-function normalizeModelToGround(object: THREE.Object3D, targetWidth: number) {
-  const sourceBounds = new THREE.Box3().setFromObject(object);
-  const sourceSize = sourceBounds.getSize(new THREE.Vector3());
-  const largestHorizontalSide = Math.max(sourceSize.x, sourceSize.z);
-  const scale = targetWidth / Math.max(largestHorizontalSide, 0.001);
-
-  object.scale.setScalar(scale);
-  object.updateMatrixWorld(true);
-
-  const scaledBounds = new THREE.Box3().setFromObject(object);
-  const scaledCenter = scaledBounds.getCenter(new THREE.Vector3());
-  object.position.sub(
-    new THREE.Vector3(scaledCenter.x, scaledBounds.min.y, scaledCenter.z),
-  );
-}
 
 function loadDeskModel(
   scene: THREE.Scene,
@@ -157,42 +53,32 @@ function loadDeskModel(
 
   let isDisposed = false;
 
-  const prepareModel = (object: THREE.Object3D, targetWidth: number) => {
-    normalizeModelToGround(object, targetWidth);
-    object.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-  };
-
   const updateComputerScreenTransform = () => {
     anchor.updateMatrixWorld(true);
     computerScreen.position.copy(
       anchor.localToWorld(
         new THREE.Vector3(
-          COMPUTER_SCREEN_CENTER_X,
-          COMPUTER_SCREEN_CENTER_Y,
-          COMPUTER_SCREEN_CENTER_Z,
+          COMPUTER_SCREEN.centerX,
+          COMPUTER_SCREEN.centerY,
+          COMPUTER_SCREEN.centerZ,
         ),
       ),
     );
     anchor.getWorldQuaternion(computerScreen.quaternion);
     computerScreen.scale.set(
-      COMPUTER_SCREEN_WIDTH / DESKTOP_UI_WIDTH,
-      COMPUTER_SCREEN_HEIGHT / DESKTOP_UI_HEIGHT,
+      COMPUTER_SCREEN.width / DESKTOP_UI_WIDTH,
+      COMPUTER_SCREEN.height / DESKTOP_UI_HEIGHT,
       1,
     );
     computerScreen.userData.isReady = true;
     computerScreen.visible = true;
   };
 
-  loader.load(DESK_MODEL_PATH, (gltf) => {
+  loader.load(ROOM_MODELS.desk, (gltf) => {
     if (isDisposed) return;
 
     const desk = gltf.scene;
-    prepareModel(desk, DESK_TARGET_WIDTH);
+    prepareModel(desk, MODEL_TARGET_WIDTH.desk);
     anchor.add(desk);
     computerPickTargets.push(desk);
     anchor.updateMatrixWorld(true);
@@ -203,13 +89,13 @@ function loadDeskModel(
     );
   });
 
-  loader.load(DESKTOP_MODEL_PATH, (gltf) => {
+  loader.load(ROOM_MODELS.desktop, (gltf) => {
     if (isDisposed) return;
 
     const desktop = gltf.scene;
     const desktopAnchor = new THREE.Group();
 
-    prepareModel(desktop, DESKTOP_TARGET_WIDTH);
+    prepareModel(desktop, MODEL_TARGET_WIDTH.desktop);
     desktopAnchor.position.set(-0.1, DESK_SURFACE_HEIGHT, -0.01);
     desktopAnchor.rotation.y = 0;
     desktopAnchor.add(desktop);
@@ -226,8 +112,8 @@ function loadDeskModel(
     computerFocusCamera.copy(
       anchor.localToWorld(
         new THREE.Vector3(
-          COMPUTER_SCREEN_CENTER_X,
-          COMPUTER_SCREEN_CENTER_Y,
+          COMPUTER_SCREEN.centerX,
+          COMPUTER_SCREEN.centerY,
           1.15,
         ),
       ),
@@ -235,9 +121,9 @@ function loadDeskModel(
     computerFocusTarget.copy(
       anchor.localToWorld(
         new THREE.Vector3(
-          COMPUTER_SCREEN_CENTER_X,
-          COMPUTER_SCREEN_CENTER_Y,
-          COMPUTER_SCREEN_CENTER_Z,
+          COMPUTER_SCREEN.centerX,
+          COMPUTER_SCREEN.centerY,
+          COMPUTER_SCREEN.centerZ,
         ),
       ),
     );
@@ -248,37 +134,6 @@ function loadDeskModel(
     computerPickTargets.length = 0;
     computerScreen.userData.isReady = false;
     computerScreen.visible = false;
-    scene.remove(anchor);
-  };
-}
-
-function loadWallTvModel(scene: THREE.Scene) {
-  const loader = new GLTFLoader();
-  const anchor = new THREE.Group();
-  const backWallInnerZ = -ROOM.depth / 2 + 0.08;
-
-  anchor.position.set(0, TV_BOTTOM_HEIGHT, backWallInnerZ);
-  anchor.rotation.y = 0;
-  scene.add(anchor);
-
-  let isDisposed = false;
-
-  loader.load(TV_MODEL_PATH, (gltf) => {
-    if (isDisposed) return;
-
-    const tv = gltf.scene;
-    normalizeModelToGround(tv, TV_TARGET_WIDTH);
-    tv.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        object.castShadow = true;
-        object.receiveShadow = true;
-      }
-    });
-    anchor.add(tv);
-  });
-
-  return () => {
-    isDisposed = true;
     scene.remove(anchor);
   };
 }
@@ -327,8 +182,6 @@ export default function RoomScene() {
     if (!mount || !computerDesktopHost) return;
 
     const scene = new THREE.Scene();
-    const skyColor = '#c9ecff';
-    scene.background = new THREE.Color(skyColor);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -359,15 +212,7 @@ export default function RoomScene() {
     cameraControllerRef.current = cameraController;
     const camera = cameraController.camera;
 
-    scene.add(new THREE.HemisphereLight('#ffffff', '#b99572', 1.7));
-    scene.add(new THREE.AmbientLight('#ffffff', 0.35));
-
-    const lamp = new THREE.PointLight('#ffd59a', 1.35, 10);
-    lamp.position.set(-2.8, 2.5, 1.4);
-    scene.add(lamp);
-
-    const floorPickTargets: THREE.Object3D[] = [];
-    const walls = buildRoom(scene, floorPickTargets);
+    const environment = new RoomEnvironment(scene);
 
     const characterController = new RoomCharacterController({
       limitX: ROOM.playerLimitX,
@@ -389,8 +234,6 @@ export default function RoomScene() {
       computerHintAnchor,
       computerScreen,
     );
-    const disposeWallTvModel = loadWallTvModel(scene);
-
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const clock = new THREE.Clock();
@@ -456,7 +299,10 @@ export default function RoomScene() {
         return;
       }
 
-      const floorHit = raycaster.intersectObjects(floorPickTargets, false)[0];
+      const floorHit = raycaster.intersectObjects(
+        environment.floorPickTargets,
+        false,
+      )[0];
       if (!floorHit) return;
 
       characterController.moveTo(floorHit.point);
@@ -544,9 +390,12 @@ export default function RoomScene() {
         setComputerHintScreenPosition({ x: 0, y: 0, visible: false });
       }
 
-      cameraController.updateWallVisibility(walls, ROOM.width, ROOM.depth);
-
-      lamp.intensity = 1.35 + 0.05 * Math.sin(clock.elapsedTime * 2.1);
+      cameraController.updateWallVisibility(
+        environment.walls,
+        ROOM.width,
+        ROOM.depth,
+      );
+      environment.update(clock.elapsedTime);
 
       renderer.render(scene, camera);
       cssRenderer.render(cssScene, camera);
@@ -587,7 +436,7 @@ export default function RoomScene() {
         }
       });
       disposeDeskModel();
-      disposeWallTvModel();
+      environment.dispose();
       renderer.dispose();
       if (cameraControllerRef.current === cameraController) {
         cameraControllerRef.current = null;
