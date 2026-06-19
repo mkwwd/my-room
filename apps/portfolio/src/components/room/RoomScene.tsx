@@ -5,11 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
-import ComputerDesktop, {
-  DESKTOP_UI_HEIGHT,
-  DESKTOP_UI_WIDTH,
-} from '../computer/ComputerDesktop';
+import ComputerDesktop from '../computer/ComputerDesktop';
 import ComputerStation from '../computer/ComputerStation';
+import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from '../computer/desktopConfig';
 
 import { RoomCameraController, type ViewDirection } from './RoomCamera';
 import RoomCharacterController from './RoomCharacter';

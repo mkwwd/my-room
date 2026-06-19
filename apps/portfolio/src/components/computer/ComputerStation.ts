@@ -11,7 +11,7 @@ import {
 } from '../room/roomConfig';
 import { prepareModel } from '../room/RoomModelUtils';
 
-import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './ComputerDesktop';
+import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './desktopConfig';
 
 export default class ComputerStation {
   readonly focusPosition = new THREE.Vector3();
