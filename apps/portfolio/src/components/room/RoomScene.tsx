@@ -81,18 +81,6 @@ export default function RoomScene() {
     cssRenderer.domElement.style.pointerEvents = 'none';
     mount.appendChild(cssRenderer.domElement);
 
-    const cssViewElement = cssRenderer.domElement
-      .firstElementChild as HTMLElement | null;
-    const cssCameraElement =
-      cssViewElement?.firstElementChild as HTMLElement | null;
-    const setDesktopPointerEvents = (isInteractive: boolean) => {
-      const pointerEvents = isInteractive ? 'auto' : 'none';
-      cssRenderer.domElement.style.pointerEvents = pointerEvents;
-      if (cssViewElement) cssViewElement.style.pointerEvents = pointerEvents;
-      if (cssCameraElement)
-        cssCameraElement.style.pointerEvents = pointerEvents;
-    };
-
     const computerStation = new ComputerStation(
       scene,
       cssScene,
@@ -158,7 +146,6 @@ export default function RoomScene() {
         focusTarget: computerStation.focusTarget,
       });
       const isComputerMode = sceneModeRef.current === 'computer';
-      setDesktopPointerEvents(isComputerMode);
       computerStation.update(camera, isComputerMode);
 
       interactionController.updateHint(mount.clientWidth, mount.clientHeight);
