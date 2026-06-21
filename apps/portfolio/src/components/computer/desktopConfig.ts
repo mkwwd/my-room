@@ -35,18 +35,30 @@ export const desktopIcons: DesktopIconConfig[] = [
     label: 'Github',
     fallbackText: 'GH',
     fallbackTone: 'bg-[#232225] text-white',
+    image: {
+      src: '/images/github_logo.png',
+      alt: 'Github logo',
+    },
   },
   {
     id: 'project',
     label: 'Project',
     fallbackText: 'P',
     fallbackTone: 'bg-[#f09a29] text-[#17110e]',
+    image: {
+      src: '/images/github_logo.png',
+      alt: 'Github logo',
+    },
   },
   {
     id: 'contact',
     label: 'Contact',
     fallbackText: 'C',
     fallbackTone: 'bg-[#55c6f2] text-[#17110e]',
+    image: {
+      src: '/images/github_logo.png',
+      alt: 'Github logo',
+    },
   },
 ];
 
