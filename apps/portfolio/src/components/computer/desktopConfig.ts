@@ -1,8 +1,8 @@
 export const DESKTOP_UI_WIDTH = 1120;
 export const DESKTOP_UI_HEIGHT = 630;
 export const DESKTOP_TASKBAR_HEIGHT = 40;
-export const DESKTOP_GRID_SIZE = 72;
-export const DESKTOP_ICON_STORAGE_KEY = 'my-room.desktop-icon-positions.v4';
+export const DESKTOP_GRID_SIZE = 96;
+export const DESKTOP_ICON_STORAGE_KEY = 'my-room.desktop-icon-positions.v5';
 
 export type DesktopIconId = 'github' | 'project' | 'contact';
 export type DesktopAppId = 'github';
@@ -67,8 +67,8 @@ export const defaultDesktopIconPositions: Record<
   DesktopIconPosition
 > = {
   github: { x: 26, y: 24 },
-  project: { x: 26, y: 96 },
-  contact: { x: 26, y: 168 },
+  project: { x: 26, y: 120 },
+  contact: { x: 26, y: 216 },
 };
 
 export const desktopApps: Record<DesktopAppId, DesktopAppConfig> = {
