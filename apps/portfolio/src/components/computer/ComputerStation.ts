@@ -3,8 +3,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
 import {
+  COMPUTER_DESK_ROTATION_Y,
   COMPUTER_SCREEN,
   COMPUTER_STATION_WALL_INSET,
+  COMPUTER_SURFACE_HEIGHT,
   DESK_ROTATION_Y,
   DESK_SURFACE_HEIGHT,
   MODEL_TARGET_WIDTH,
@@ -81,12 +83,25 @@ export default class ComputerStation {
       this.updateHintAnchor();
     });
 
+    this.loader.load(ROOM_MODELS.computerDesk, (gltf) => {
+      if (this.isDisposed) return;
+
+      const computerDeskAnchor = new THREE.Group();
+      gltf.scene.rotation.y = COMPUTER_DESK_ROTATION_Y;
+      prepareModel(gltf.scene, MODEL_TARGET_WIDTH.computerDesk);
+      computerDeskAnchor.position.set(-0.1, DESK_SURFACE_HEIGHT, -0.01);
+      computerDeskAnchor.add(gltf.scene);
+      this.anchor.add(computerDeskAnchor);
+      this.pickTargets.push(computerDeskAnchor);
+      this.updateHintAnchor();
+    });
+
     this.loader.load(ROOM_MODELS.desktop, (gltf) => {
       if (this.isDisposed) return;
 
       const desktopAnchor = new THREE.Group();
       prepareModel(gltf.scene, MODEL_TARGET_WIDTH.desktop);
-      desktopAnchor.position.set(-0.1, DESK_SURFACE_HEIGHT, -0.01);
+      desktopAnchor.position.set(-0.1, COMPUTER_SURFACE_HEIGHT, -0.01);
       desktopAnchor.add(gltf.scene);
       this.anchor.add(desktopAnchor);
       this.pickTargets.push(desktopAnchor);
@@ -139,7 +154,7 @@ export default class ComputerStation {
     this.anchor.updateMatrixWorld(true);
     this.hintAnchor.copy(
       this.anchor.localToWorld(
-        new THREE.Vector3(-0.08, DESK_SURFACE_HEIGHT + 1.42, -0.02),
+        new THREE.Vector3(-0.08, COMPUTER_SURFACE_HEIGHT + 1.42, -0.02),
       ),
     );
   }
