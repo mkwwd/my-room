@@ -19,14 +19,14 @@ export const WALL_THICKNESS = 0.32;
 export const ROOM_MODELS = {
   desk: '/whitedesk.glb',
   computerDesk: '/computerdesk.glb',
-  desktop: '/desktop.glb',
+  computer: '/computer.glb',
   tv: '/tv.glb',
 } as const;
 
 export const MODEL_TARGET_WIDTH = {
   desk: 4,
   computerDesk: 2.4,
-  desktop: 2,
+  computer: 1.8,
   tv: 5.4,
 } as const;
 
@@ -42,9 +42,9 @@ export const COMPUTER_STATION_WALL_INSET = 1.35;
 export const TV_BOTTOM_HEIGHT = 2.28;
 
 export const COMPUTER_SCREEN = {
-  centerX: -0.27,
-  centerY: COMPUTER_SURFACE_HEIGHT + 0.92,
-  centerZ: -0.35,
-  width: 1.42,
-  height: 0.76,
+  centerX: -0.1,
+  centerY: COMPUTER_SURFACE_HEIGHT + 0.72,
+  centerZ: 0.13,
+  width: 1.55,
+  height: 0.84,
 } as const;

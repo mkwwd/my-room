@@ -18,6 +18,9 @@ import { prepareModel } from '../room/RoomModelUtils';
 
 import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './desktopConfig';
 
+const COMPUTER_MODEL_DEPTH_SCALE = 0.12;
+const COMPUTER_MODEL_HEIGHT_SCALE = 0.065;
+
 export default class ComputerStation {
   readonly focusPosition = new THREE.Vector3();
   readonly focusTarget = new THREE.Vector3();
@@ -98,15 +101,25 @@ export default class ComputerStation {
       this.updateHintAnchor();
     });
 
-    this.loader.load(ROOM_MODELS.desktop, (gltf) => {
+    this.loader.load(ROOM_MODELS.computer, (gltf) => {
       if (this.isDisposed) return;
 
-      const desktopAnchor = new THREE.Group();
-      prepareModel(gltf.scene, MODEL_TARGET_WIDTH.desktop);
-      desktopAnchor.position.set(-0.1, COMPUTER_SURFACE_HEIGHT, -0.01);
-      desktopAnchor.add(gltf.scene);
-      this.anchor.add(desktopAnchor);
-      this.pickTargets.push(desktopAnchor);
+      const computerAnchor = new THREE.Group();
+      const computerModel = new THREE.Group();
+      const correctedComputer = new THREE.Group();
+      correctedComputer.rotation.x = -Math.PI / 2;
+      correctedComputer.scale.set(
+        1,
+        COMPUTER_MODEL_DEPTH_SCALE,
+        COMPUTER_MODEL_HEIGHT_SCALE,
+      );
+      correctedComputer.add(gltf.scene);
+      computerModel.add(correctedComputer);
+      prepareModel(computerModel, MODEL_TARGET_WIDTH.computer);
+      computerAnchor.position.set(-0.1, COMPUTER_SURFACE_HEIGHT, -0.01);
+      computerAnchor.add(computerModel);
+      this.anchor.add(computerAnchor);
+      this.pickTargets.push(computerAnchor);
 
       this.anchor.updateMatrixWorld(true);
       this.updateScreenTransform();
