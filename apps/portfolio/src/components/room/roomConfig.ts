@@ -23,12 +23,13 @@ export const ROOM_MODELS = {
 } as const;
 
 export const MODEL_TARGET_WIDTH = {
-  desk: 3.1,
+  desk: 4.2,
   desktop: 2,
   tv: 5.4,
 } as const;
 
-export const DESK_SURFACE_HEIGHT = 1.71;
+export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;
+export const DESK_SURFACE_HEIGHT = 1.81;
 export const TV_BOTTOM_HEIGHT = 2.28;
 
 export const COMPUTER_SCREEN = {
