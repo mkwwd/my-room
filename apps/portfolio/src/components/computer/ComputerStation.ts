@@ -91,11 +91,15 @@ export default class ComputerStation {
       if (this.isDisposed) return;
 
       const computerDeskAnchor = new THREE.Group();
-      gltf.scene.rotation.y = COMPUTER_DESK_ROTATION_Y;
-      prepareModel(gltf.scene, MODEL_TARGET_WIDTH.computerDesk);
-      gltf.scene.scale.y *= COMPUTER_DESK_HEIGHT_SCALE;
+      const computerDeskModel = new THREE.Group();
+      const adjustedComputerDesk = new THREE.Group();
+      adjustedComputerDesk.rotation.y = COMPUTER_DESK_ROTATION_Y;
+      adjustedComputerDesk.scale.y = COMPUTER_DESK_HEIGHT_SCALE;
+      adjustedComputerDesk.add(gltf.scene);
+      computerDeskModel.add(adjustedComputerDesk);
+      prepareModel(computerDeskModel, MODEL_TARGET_WIDTH.computerDesk);
       computerDeskAnchor.position.set(-0.1, DESK_SURFACE_HEIGHT, -0.01);
-      computerDeskAnchor.add(gltf.scene);
+      computerDeskAnchor.add(computerDeskModel);
       this.anchor.add(computerDeskAnchor);
       this.pickTargets.push(computerDeskAnchor);
       this.updateHintAnchor();
