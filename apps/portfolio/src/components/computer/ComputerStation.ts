@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
 import {
+  COMPUTER_DESK_HEIGHT_SCALE,
   COMPUTER_DESK_ROTATION_Y,
   COMPUTER_SCREEN,
   COMPUTER_STATION_WALL_INSET,
@@ -89,6 +90,7 @@ export default class ComputerStation {
       const computerDeskAnchor = new THREE.Group();
       gltf.scene.rotation.y = COMPUTER_DESK_ROTATION_Y;
       prepareModel(gltf.scene, MODEL_TARGET_WIDTH.computerDesk);
+      gltf.scene.scale.y *= COMPUTER_DESK_HEIGHT_SCALE;
       computerDeskAnchor.position.set(-0.1, DESK_SURFACE_HEIGHT, -0.01);
       computerDeskAnchor.add(gltf.scene);
       this.anchor.add(computerDeskAnchor);
