@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
 import {
+  COMPUTER_BASE_HEIGHT,
   COMPUTER_DESK_HEIGHT_SCALE,
   COMPUTER_DESK_ROTATION_Y,
   COMPUTER_SCREEN,
@@ -120,7 +121,7 @@ export default class ComputerStation {
       correctedComputer.add(gltf.scene);
       computerModel.add(correctedComputer);
       prepareModel(computerModel, MODEL_TARGET_WIDTH.computer);
-      computerAnchor.position.set(-0.1, COMPUTER_SURFACE_HEIGHT, -0.01);
+      computerAnchor.position.set(-0.1, COMPUTER_BASE_HEIGHT, -0.01);
       computerAnchor.add(computerModel);
       this.anchor.add(computerAnchor);
       this.pickTargets.push(computerAnchor);
@@ -133,7 +134,7 @@ export default class ComputerStation {
           new THREE.Vector3(
             COMPUTER_SCREEN.centerX,
             COMPUTER_SCREEN.centerY,
-            1.15,
+            COMPUTER_SCREEN.centerZ + COMPUTER_SCREEN.focusDistance,
           ),
         ),
       );

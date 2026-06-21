@@ -38,13 +38,15 @@ export const COMPUTER_DESK_HEIGHT =
   MODEL_TARGET_WIDTH.computerDesk * 0.075 * COMPUTER_DESK_HEIGHT_SCALE;
 export const COMPUTER_SURFACE_HEIGHT =
   DESK_SURFACE_HEIGHT + COMPUTER_DESK_HEIGHT;
+export const COMPUTER_BASE_HEIGHT = COMPUTER_SURFACE_HEIGHT - 0.05;
 export const COMPUTER_STATION_WALL_INSET = 1.35;
 export const TV_BOTTOM_HEIGHT = 2.28;
 
 export const COMPUTER_SCREEN = {
-  centerX: -0.05,
-  centerY: COMPUTER_SURFACE_HEIGHT + 0.72,
+  centerX: -0.08,
+  centerY: COMPUTER_BASE_HEIGHT + 0.63,
   centerZ: 0.13,
-  width: 1.58,
-  height: 1,
+  width: 1.7,
+  height: 1.18,
+  focusDistance: 2.45,
 } as const;
