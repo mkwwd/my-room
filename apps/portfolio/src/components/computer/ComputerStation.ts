@@ -18,7 +18,7 @@ import { prepareModel } from '../room/RoomModelUtils';
 
 import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './desktopConfig';
 
-const COMPUTER_MODEL_HEIGHT_SCALE = 0.78;
+const COMPUTER_MODEL_HEIGHT_SCALE = 1;
 const COMPUTER_MODEL_DEPTH_SCALE = 0.015;
 
 export default class ComputerStation {
