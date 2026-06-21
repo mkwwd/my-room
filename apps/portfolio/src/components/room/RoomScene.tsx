@@ -144,7 +144,11 @@ export default function RoomScene() {
         focusPosition: computerStation.focusPosition,
         focusTarget: computerStation.focusTarget,
       });
-      computerStation.update(camera, sceneModeRef.current === 'computer');
+      const isComputerMode = sceneModeRef.current === 'computer';
+      cssRenderer.domElement.style.pointerEvents = isComputerMode
+        ? 'auto'
+        : 'none';
+      computerStation.update(camera, isComputerMode);
 
       interactionController.updateHint(mount.clientWidth, mount.clientHeight);
 
@@ -208,7 +212,7 @@ export default function RoomScene() {
             height: `${DESKTOP_UI_HEIGHT}px`,
             overflow: 'hidden',
             backfaceVisibility: 'hidden',
-            pointerEvents: 'none',
+            pointerEvents: sceneMode === 'computer' ? 'auto' : 'none',
           }}>
           <ComputerDesktop
             isFocused={sceneMode === 'computer'}

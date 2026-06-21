@@ -68,7 +68,8 @@ export default class ComputerStation {
       .copy(camera.position)
       .sub(this.screen.position)
       .normalize();
-    this.screen.visible = this.screenNormal.dot(this.screenToCamera) > 0.02;
+    this.screen.visible =
+      isInteractive && this.screenNormal.dot(this.screenToCamera) > 0.02;
     this.screen.element.style.pointerEvents =
       isInteractive && this.screen.visible ? 'auto' : 'none';
   }
