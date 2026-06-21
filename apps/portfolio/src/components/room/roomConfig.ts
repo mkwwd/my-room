@@ -30,6 +30,7 @@ export const MODEL_TARGET_WIDTH = {
 
 export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;
 export const DESK_SURFACE_HEIGHT = 1.81;
+export const COMPUTER_STATION_WALL_INSET = 1.35;
 export const TV_BOTTOM_HEIGHT = 2.28;
 
 export const COMPUTER_SCREEN = {

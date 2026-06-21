@@ -4,6 +4,7 @@ import { CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
 import {
   COMPUTER_SCREEN,
+  COMPUTER_STATION_WALL_INSET,
   DESK_ROTATION_Y,
   DESK_SURFACE_HEIGHT,
   MODEL_TARGET_WIDTH,
@@ -32,7 +33,7 @@ export default class ComputerStation {
     private readonly cssScene: THREE.Scene,
     desktopHost: HTMLDivElement,
   ) {
-    const leftWallInnerX = -ROOM.width / 2 + 0.88;
+    const leftWallInnerX = -ROOM.width / 2 + COMPUTER_STATION_WALL_INSET;
     this.anchor.position.set(leftWallInnerX, 0, 2);
     this.anchor.rotation.y = Math.PI / 2;
     scene.add(this.anchor);
