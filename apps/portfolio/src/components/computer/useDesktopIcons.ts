@@ -75,6 +75,11 @@ export default function useDesktopIcons() {
   const desktopRef = useRef<HTMLDivElement | null>(null);
   const iconPointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const didDragIconRef = useRef(false);
+  const draggingIconRef = useRef<{
+    id: DesktopIconId;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
   const [iconPositions, setIconPositions] = useState<
     Record<DesktopIconId, DesktopIconPosition>
   >(getStoredIconPositions);
@@ -133,7 +138,7 @@ export default function useDesktopIcons() {
     event.currentTarget.setPointerCapture(event.pointerId);
     iconPointerStartRef.current = { x: event.clientX, y: event.clientY };
     didDragIconRef.current = false;
-    setDraggingIcon({
+    const nextDraggingIcon = {
       id: iconId,
       offsetX:
         (event.clientX - desktopBounds.left) / Math.max(scaleX, 0.001) -
@@ -141,14 +146,17 @@ export default function useDesktopIcons() {
       offsetY:
         (event.clientY - desktopBounds.top) / Math.max(scaleY, 0.001) -
         iconPosition.y,
-    });
+    };
+    draggingIconRef.current = nextDraggingIcon;
+    setDraggingIcon(nextDraggingIcon);
   };
 
   const moveIcon = (
     event: ReactPointerEvent<HTMLButtonElement>,
     iconId: DesktopIconId,
   ) => {
-    if (!draggingIcon || draggingIcon.id !== iconId) return;
+    const activeDrag = draggingIconRef.current;
+    if (!activeDrag || activeDrag.id !== iconId) return;
 
     const desktop = desktopRef.current;
     if (!desktop) return;
@@ -170,10 +178,10 @@ export default function useDesktopIcons() {
     updateIconPosition(iconId, {
       x:
         (event.clientX - desktopBounds.left) / Math.max(scaleX, 0.001) -
-        draggingIcon.offsetX,
+        activeDrag.offsetX,
       y:
         (event.clientY - desktopBounds.top) / Math.max(scaleY, 0.001) -
-        draggingIcon.offsetY,
+        activeDrag.offsetY,
     });
   };
 
@@ -181,7 +189,8 @@ export default function useDesktopIcons() {
     event: ReactPointerEvent<HTMLButtonElement>,
     iconId: DesktopIconId,
   ) => {
-    if (!draggingIcon || draggingIcon.id !== iconId) return false;
+    const activeDrag = draggingIconRef.current;
+    if (!activeDrag || activeDrag.id !== iconId) return false;
 
     const shouldOpenApp = !didDragIconRef.current;
     const desktop = desktopRef.current;
@@ -194,10 +203,10 @@ export default function useDesktopIcons() {
         {
           x:
             (event.clientX - desktopBounds.left) / Math.max(scaleX, 0.001) -
-            draggingIcon.offsetX,
+            activeDrag.offsetX,
           y:
             (event.clientY - desktopBounds.top) / Math.max(scaleY, 0.001) -
-            draggingIcon.offsetY,
+            activeDrag.offsetY,
         },
         true,
       );
@@ -208,6 +217,7 @@ export default function useDesktopIcons() {
     }
     iconPointerStartRef.current = null;
     didDragIconRef.current = false;
+    draggingIconRef.current = null;
     setDraggingIcon(null);
 
     return shouldOpenApp;
