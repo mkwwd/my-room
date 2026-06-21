@@ -43,8 +43,8 @@ export const TV_BOTTOM_HEIGHT = 2.28;
 
 export const COMPUTER_SCREEN = {
   centerX: -0.1,
-  centerY: COMPUTER_SURFACE_HEIGHT + 0.72,
+  centerY: COMPUTER_SURFACE_HEIGHT + 0.91,
   centerZ: 0.13,
-  width: 1.55,
-  height: 0.84,
+  width: 1.58,
+  height: 1.1,
 } as const;
