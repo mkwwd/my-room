@@ -57,8 +57,11 @@ export default class ComputerStation {
     return raycaster.intersectObjects(this.pickTargets, true).length > 0;
   }
 
-  update(camera: THREE.Camera) {
-    if (!this.screen.userData.isReady) return;
+  update(camera: THREE.Camera, isInteractive: boolean) {
+    if (!this.screen.userData.isReady) {
+      this.screen.element.style.pointerEvents = 'none';
+      return;
+    }
 
     this.screenNormal.set(0, 0, 1).applyQuaternion(this.screen.quaternion);
     this.screenToCamera
@@ -66,6 +69,8 @@ export default class ComputerStation {
       .sub(this.screen.position)
       .normalize();
     this.screen.visible = this.screenNormal.dot(this.screenToCamera) > 0.02;
+    this.screen.element.style.pointerEvents =
+      isInteractive && this.screen.visible ? 'auto' : 'none';
   }
 
   dispose() {
@@ -73,6 +78,7 @@ export default class ComputerStation {
     this.pickTargets.length = 0;
     this.screen.userData.isReady = false;
     this.screen.visible = false;
+    this.screen.element.style.pointerEvents = 'none';
     this.scene.remove(this.anchor);
     this.cssScene.remove(this.screen);
   }

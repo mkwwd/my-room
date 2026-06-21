@@ -43,10 +43,10 @@ export const COMPUTER_STATION_WALL_INSET = 1.35;
 export const TV_BOTTOM_HEIGHT = 2.28;
 
 export const COMPUTER_SCREEN = {
-  centerX: -0.08,
-  centerY: COMPUTER_BASE_HEIGHT + 0.63,
-  centerZ: -0.137,
-  width: 1.7,
-  height: 1.18,
+  centerX: -0.1,
+  centerY: COMPUTER_BASE_HEIGHT + 0.71,
+  centerZ: 0.137,
+  width: 1.64,
+  height: 0.99,
   focusDistance: 2.45,
 } as const;

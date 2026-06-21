@@ -144,7 +144,7 @@ export default function RoomScene() {
         focusPosition: computerStation.focusPosition,
         focusTarget: computerStation.focusTarget,
       });
-      computerStation.update(camera);
+      computerStation.update(camera, sceneModeRef.current === 'computer');
 
       interactionController.updateHint(mount.clientWidth, mount.clientHeight);
 
