@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import * as THREE from 'three';
-import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
-import ComputerDesktop from '../computer/ComputerDesktop';
+import ComputerDesktopLayer from '../computer/ComputerDesktopLayer';
 import ComputerStation from '../computer/ComputerStation';
 import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from '../computer/desktopConfig';
 
@@ -20,8 +19,7 @@ import RoomInteractionController, {
 
 export default function RoomScene() {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const computerDesktopHostRef = useRef<HTMLDivElement | null>(null);
-  const computerDesktopParkingRef = useRef<HTMLDivElement | null>(null);
+  const computerDesktopLayerRef = useRef<HTMLDivElement | null>(null);
   const cameraControllerRef = useRef<RoomCameraController | null>(null);
   const sceneModeRef = useRef<SceneMode>('explore');
   const [viewDirection, setViewDirection] = useState<ViewDirection>(0);
@@ -58,8 +56,7 @@ export default function RoomScene() {
 
   useEffect(() => {
     const mount = mountRef.current;
-    const computerDesktopHost = computerDesktopHostRef.current;
-    if (!mount || !computerDesktopHost) return;
+    if (!mount) return;
 
     const scene = new THREE.Scene();
 
@@ -72,20 +69,7 @@ export default function RoomScene() {
     renderer.domElement.style.inset = '0';
     mount.appendChild(renderer.domElement);
 
-    const cssScene = new THREE.Scene();
-    const cssRenderer = new CSS3DRenderer();
-    cssRenderer.setSize(mount.clientWidth, Math.max(mount.clientHeight, 1));
-    cssRenderer.domElement.style.position = 'absolute';
-    cssRenderer.domElement.style.inset = '0';
-    cssRenderer.domElement.style.zIndex = '1';
-    cssRenderer.domElement.style.pointerEvents = 'none';
-    mount.appendChild(cssRenderer.domElement);
-
-    const computerStation = new ComputerStation(
-      scene,
-      cssScene,
-      computerDesktopHost,
-    );
+    const computerStation = new ComputerStation(scene);
 
     const cameraController = new RoomCameraController(
       mount.clientWidth / Math.max(mount.clientHeight, 1),
@@ -123,7 +107,6 @@ export default function RoomScene() {
       const height = Math.max(mount.clientHeight, 1);
       cameraController.resize(width, height);
       renderer.setSize(width, height);
-      cssRenderer.setSize(width, height);
     };
 
     const animate = () => {
@@ -146,7 +129,22 @@ export default function RoomScene() {
         focusTarget: computerStation.focusTarget,
       });
       const isComputerMode = sceneModeRef.current === 'computer';
-      computerStation.update(camera, isComputerMode);
+      const desktopLayer = computerDesktopLayerRef.current;
+      const screenViewport = computerStation.getScreenViewport(
+        camera,
+        mount.clientWidth,
+        mount.clientHeight,
+      );
+      if (desktopLayer && isComputerMode && screenViewport) {
+        desktopLayer.style.visibility = 'visible';
+        desktopLayer.style.pointerEvents = 'auto';
+        desktopLayer.style.transform =
+          `translate3d(${screenViewport.left}px, ${screenViewport.top}px, 0) ` +
+          `scale(${screenViewport.width / DESKTOP_UI_WIDTH}, ${screenViewport.height / DESKTOP_UI_HEIGHT})`;
+      } else if (desktopLayer) {
+        desktopLayer.style.visibility = 'hidden';
+        desktopLayer.style.pointerEvents = 'none';
+      }
 
       interactionController.updateHint(mount.clientWidth, mount.clientHeight);
 
@@ -158,7 +156,6 @@ export default function RoomScene() {
       environment.update(clock.elapsedTime);
 
       renderer.render(scene, camera);
-      cssRenderer.render(cssScene, camera);
       frame = requestAnimationFrame(animate);
     };
 
@@ -172,7 +169,6 @@ export default function RoomScene() {
       window.removeEventListener('resize', resize);
       interactionController.dispose();
       mount.removeChild(renderer.domElement);
-      mount.removeChild(cssRenderer.domElement);
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose();
@@ -185,7 +181,6 @@ export default function RoomScene() {
       });
       computerStation.dispose();
       environment.dispose();
-      computerDesktopParkingRef.current?.appendChild(computerDesktopHost);
       renderer.dispose();
       if (cameraControllerRef.current === cameraController) {
         cameraControllerRef.current = null;
@@ -199,25 +194,11 @@ export default function RoomScene() {
         className="absolute inset-0 [&_canvas]:block [&_canvas]:h-full [&_canvas]:w-full"
         ref={mountRef}
       />
-      <div
-        className="hidden"
-        ref={computerDesktopParkingRef}
-        aria-hidden="true">
-        <div
-          ref={computerDesktopHostRef}
-          style={{
-            width: `${DESKTOP_UI_WIDTH}px`,
-            height: `${DESKTOP_UI_HEIGHT}px`,
-            overflow: 'hidden',
-            backfaceVisibility: 'hidden',
-            pointerEvents: sceneMode === 'computer' ? 'auto' : 'none',
-          }}>
-          <ComputerDesktop
-            isFocused={sceneMode === 'computer'}
-            onClose={exitComputerMode}
-          />
-        </div>
-      </div>
+      <ComputerDesktopLayer
+        ref={computerDesktopLayerRef}
+        isFocused={sceneMode === 'computer'}
+        onClose={exitComputerMode}
+      />
       <RoomHud
         sceneMode={sceneMode}
         isComputerHovered={isComputerHovered}

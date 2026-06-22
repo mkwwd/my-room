@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
 import {
   COMPUTER_BASE_HEIGHT,
@@ -17,10 +16,15 @@ import {
 } from '../room/roomConfig';
 import { prepareModel } from '../room/RoomModelUtils';
 
-import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './desktopConfig';
-
 const COMPUTER_MODEL_HEIGHT_SCALE = 1;
 const COMPUTER_MODEL_DEPTH_SCALE = 0.015;
+
+export type ComputerScreenViewport = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 
 export default class ComputerStation {
   readonly focusPosition = new THREE.Vector3();
@@ -30,25 +34,40 @@ export default class ComputerStation {
   private readonly loader = new GLTFLoader();
   private readonly anchor = new THREE.Group();
   private readonly pickTargets: THREE.Object3D[] = [];
-  private readonly screen: CSS3DObject;
-  private readonly screenNormal = new THREE.Vector3();
-  private readonly screenToCamera = new THREE.Vector3();
+  private readonly localScreenCorners = [
+    new THREE.Vector3(
+      COMPUTER_SCREEN.centerX - COMPUTER_SCREEN.width / 2,
+      COMPUTER_SCREEN.centerY + COMPUTER_SCREEN.height / 2,
+      COMPUTER_SCREEN.centerZ,
+    ),
+    new THREE.Vector3(
+      COMPUTER_SCREEN.centerX + COMPUTER_SCREEN.width / 2,
+      COMPUTER_SCREEN.centerY + COMPUTER_SCREEN.height / 2,
+      COMPUTER_SCREEN.centerZ,
+    ),
+    new THREE.Vector3(
+      COMPUTER_SCREEN.centerX + COMPUTER_SCREEN.width / 2,
+      COMPUTER_SCREEN.centerY - COMPUTER_SCREEN.height / 2,
+      COMPUTER_SCREEN.centerZ,
+    ),
+    new THREE.Vector3(
+      COMPUTER_SCREEN.centerX - COMPUTER_SCREEN.width / 2,
+      COMPUTER_SCREEN.centerY - COMPUTER_SCREEN.height / 2,
+      COMPUTER_SCREEN.centerZ,
+    ),
+  ];
+  private readonly projectedScreenCorners = Array.from(
+    { length: 4 },
+    () => new THREE.Vector3(),
+  );
+  private isScreenReady = false;
   private isDisposed = false;
 
-  constructor(
-    private readonly scene: THREE.Scene,
-    private readonly cssScene: THREE.Scene,
-    desktopHost: HTMLDivElement,
-  ) {
+  constructor(private readonly scene: THREE.Scene) {
     const leftWallInnerX = -ROOM.width / 2 + COMPUTER_STATION_WALL_INSET;
     this.anchor.position.set(leftWallInnerX, 0, 2);
     this.anchor.rotation.y = Math.PI / 2;
     scene.add(this.anchor);
-
-    this.screen = new CSS3DObject(desktopHost);
-    this.screen.visible = false;
-    this.screen.element.style.pointerEvents = 'none';
-    cssScene.add(this.screen);
 
     this.loadModels();
   }
@@ -57,31 +76,48 @@ export default class ComputerStation {
     return raycaster.intersectObjects(this.pickTargets, true).length > 0;
   }
 
-  update(camera: THREE.Camera, isInteractive: boolean) {
-    if (!this.screen.userData.isReady) {
-      this.screen.element.style.pointerEvents = 'none';
-      return;
+  getScreenViewport(
+    camera: THREE.Camera,
+    viewportWidth: number,
+    viewportHeight: number,
+  ): ComputerScreenViewport | null {
+    if (!this.isScreenReady) return null;
+
+    this.anchor.updateMatrixWorld(true);
+    camera.updateMatrixWorld();
+    let left = Number.POSITIVE_INFINITY;
+    let right = Number.NEGATIVE_INFINITY;
+    let top = Number.POSITIVE_INFINITY;
+    let bottom = Number.NEGATIVE_INFINITY;
+
+    for (let index = 0; index < this.localScreenCorners.length; index += 1) {
+      const projectedCorner = this.projectedScreenCorners[index]
+        .copy(this.localScreenCorners[index])
+        .applyMatrix4(this.anchor.matrixWorld)
+        .project(camera);
+      if (projectedCorner.z < -1 || projectedCorner.z > 1) return null;
+
+      const screenX = (projectedCorner.x * 0.5 + 0.5) * viewportWidth;
+      const screenY = (-projectedCorner.y * 0.5 + 0.5) * viewportHeight;
+      left = Math.min(left, screenX);
+      right = Math.max(right, screenX);
+      top = Math.min(top, screenY);
+      bottom = Math.max(bottom, screenY);
     }
 
-    this.screenNormal.set(0, 0, 1).applyQuaternion(this.screen.quaternion);
-    this.screenToCamera
-      .copy(camera.position)
-      .sub(this.screen.position)
-      .normalize();
-    this.screen.visible =
-      isInteractive && this.screenNormal.dot(this.screenToCamera) > 0.02;
-    this.screen.element.style.pointerEvents =
-      isInteractive && this.screen.visible ? 'auto' : 'none';
+    return {
+      left,
+      top,
+      width: right - left,
+      height: bottom - top,
+    };
   }
 
   dispose() {
     this.isDisposed = true;
     this.pickTargets.length = 0;
-    this.screen.userData.isReady = false;
-    this.screen.visible = false;
-    this.screen.element.style.pointerEvents = 'none';
+    this.isScreenReady = false;
     this.scene.remove(this.anchor);
-    this.cssScene.remove(this.screen);
   }
 
   private loadModels() {
@@ -134,7 +170,7 @@ export default class ComputerStation {
       this.pickTargets.push(computerAnchor);
 
       this.anchor.updateMatrixWorld(true);
-      this.updateScreenTransform();
+      this.isScreenReady = true;
       this.updateHintAnchor();
       this.focusPosition.copy(
         this.anchor.localToWorld(
@@ -155,26 +191,6 @@ export default class ComputerStation {
         ),
       );
     });
-  }
-
-  private updateScreenTransform() {
-    this.screen.position.copy(
-      this.anchor.localToWorld(
-        new THREE.Vector3(
-          COMPUTER_SCREEN.centerX,
-          COMPUTER_SCREEN.centerY,
-          COMPUTER_SCREEN.centerZ,
-        ),
-      ),
-    );
-    this.anchor.getWorldQuaternion(this.screen.quaternion);
-    this.screen.scale.set(
-      COMPUTER_SCREEN.width / DESKTOP_UI_WIDTH,
-      COMPUTER_SCREEN.height / DESKTOP_UI_HEIGHT,
-      1,
-    );
-    this.screen.userData.isReady = true;
-    this.screen.visible = true;
   }
 
   private updateHintAnchor() {
