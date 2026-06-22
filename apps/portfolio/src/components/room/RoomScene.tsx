@@ -143,9 +143,9 @@ export default function RoomScene() {
             DESKTOP_UI_HEIGHT,
           )
         : null;
-      if (desktopLayer && isComputerMode && screenTransform) {
+      if (desktopLayer && screenTransform) {
         desktopLayer.style.visibility = 'visible';
-        desktopLayer.style.pointerEvents = 'auto';
+        desktopLayer.style.pointerEvents = isComputerMode ? 'auto' : 'none';
         desktopLayer.style.transform = screenTransform;
       } else if (desktopLayer) {
         desktopLayer.style.visibility = 'hidden';
