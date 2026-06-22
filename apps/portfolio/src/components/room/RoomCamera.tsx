@@ -186,7 +186,7 @@ export default function RoomCameraControls({
       <button
         type="button"
         className={controlBaseClass}
-        onClick={() => onRotate(1)}
+        onClick={() => onRotate(-1)}
         aria-label="Rotate camera 90 degrees left">
         {'<'}
       </button>
@@ -202,7 +202,7 @@ export default function RoomCameraControls({
       <button
         type="button"
         className={controlBaseClass}
-        onClick={() => onRotate(-1)}
+        onClick={() => onRotate(1)}
         aria-label="Rotate camera 90 degrees right">
         {'>'}
       </button>
