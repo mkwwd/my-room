@@ -45,7 +45,7 @@ export const TV_BOTTOM_HEIGHT = 2.28;
 export const COMPUTER_SCREEN = {
   centerX: -0.1,
   centerY: COMPUTER_BASE_HEIGHT + 0.71,
-  centerZ: 0.137,
+  centerZ: 0,
   width: 1.64,
   height: 0.99,
   focusDistance: 2.45,
