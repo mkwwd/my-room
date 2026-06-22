@@ -17,7 +17,7 @@ const ComputerDesktopLayer = forwardRef<
   return (
     <div
       ref={ref}
-      className="pointer-events-none invisible absolute top-0 left-0 z-[2] origin-top-left overflow-hidden"
+      className="pointer-events-none invisible absolute top-0 left-0 z-[2] origin-top-left overflow-hidden will-change-transform"
       style={{
         width: `${DESKTOP_UI_WIDTH}px`,
         height: `${DESKTOP_UI_HEIGHT}px`,

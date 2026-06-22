@@ -6,6 +6,7 @@ import * as THREE from 'three';
 
 import ComputerDesktopLayer from '../computer/ComputerDesktopLayer';
 import ComputerStation from '../computer/ComputerStation';
+import { createComputerScreenTransform } from '../computer/computerScreenTransform';
 import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from '../computer/desktopConfig';
 
 import { RoomCameraController, type ViewDirection } from './RoomCamera';
@@ -135,12 +136,17 @@ export default function RoomScene() {
         mount.clientWidth,
         mount.clientHeight,
       );
-      if (desktopLayer && isComputerMode && screenViewport) {
+      const screenTransform = screenViewport
+        ? createComputerScreenTransform(
+            screenViewport,
+            DESKTOP_UI_WIDTH,
+            DESKTOP_UI_HEIGHT,
+          )
+        : null;
+      if (desktopLayer && isComputerMode && screenTransform) {
         desktopLayer.style.visibility = 'visible';
         desktopLayer.style.pointerEvents = 'auto';
-        desktopLayer.style.transform =
-          `translate3d(${screenViewport.left}px, ${screenViewport.top}px, 0) ` +
-          `scale(${screenViewport.width / DESKTOP_UI_WIDTH}, ${screenViewport.height / DESKTOP_UI_HEIGHT})`;
+        desktopLayer.style.transform = screenTransform;
       } else if (desktopLayer) {
         desktopLayer.style.visibility = 'hidden';
         desktopLayer.style.pointerEvents = 'none';

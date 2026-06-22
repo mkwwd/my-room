@@ -16,15 +16,10 @@ import {
 } from '../room/roomConfig';
 import { prepareModel } from '../room/RoomModelUtils';
 
+import type { ComputerScreenViewport } from './computerScreenTransform';
+
 const COMPUTER_MODEL_HEIGHT_SCALE = 1;
 const COMPUTER_MODEL_DEPTH_SCALE = 0.015;
-
-export type ComputerScreenViewport = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
 
 export default class ComputerStation {
   readonly focusPosition = new THREE.Vector3();
@@ -60,6 +55,18 @@ export default class ComputerStation {
     { length: 4 },
     () => new THREE.Vector3(),
   );
+  private readonly screenViewport: ComputerScreenViewport = {
+    topLeft: { x: 0, y: 0 },
+    topRight: { x: 0, y: 0 },
+    bottomRight: { x: 0, y: 0 },
+    bottomLeft: { x: 0, y: 0 },
+  };
+  private readonly screenViewportPoints = [
+    this.screenViewport.topLeft,
+    this.screenViewport.topRight,
+    this.screenViewport.bottomRight,
+    this.screenViewport.bottomLeft,
+  ];
   private isScreenReady = false;
   private isDisposed = false;
 
@@ -85,10 +92,6 @@ export default class ComputerStation {
 
     this.anchor.updateMatrixWorld(true);
     camera.updateMatrixWorld();
-    let left = Number.POSITIVE_INFINITY;
-    let right = Number.NEGATIVE_INFINITY;
-    let top = Number.POSITIVE_INFINITY;
-    let bottom = Number.NEGATIVE_INFINITY;
 
     for (let index = 0; index < this.localScreenCorners.length; index += 1) {
       const projectedCorner = this.projectedScreenCorners[index]
@@ -97,20 +100,12 @@ export default class ComputerStation {
         .project(camera);
       if (projectedCorner.z < -1 || projectedCorner.z > 1) return null;
 
-      const screenX = (projectedCorner.x * 0.5 + 0.5) * viewportWidth;
-      const screenY = (-projectedCorner.y * 0.5 + 0.5) * viewportHeight;
-      left = Math.min(left, screenX);
-      right = Math.max(right, screenX);
-      top = Math.min(top, screenY);
-      bottom = Math.max(bottom, screenY);
+      const viewportPoint = this.screenViewportPoints[index];
+      viewportPoint.x = (projectedCorner.x * 0.5 + 0.5) * viewportWidth;
+      viewportPoint.y = (-projectedCorner.y * 0.5 + 0.5) * viewportHeight;
     }
 
-    return {
-      left,
-      top,
-      width: right - left,
-      height: bottom - top,
-    };
+    return this.screenViewport;
   }
 
   dispose() {
