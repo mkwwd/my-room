@@ -1,23 +1,23 @@
 import RoomCameraControls, { type ViewDirection } from './RoomCamera';
-import type { SceneMode } from './roomConfig';
+import type { FocusMode, SceneMode } from './roomConfig';
 import type { ScreenPosition } from './RoomInteractionController';
 
 type RoomHudProps = {
   sceneMode: SceneMode;
-  isComputerHovered: boolean;
-  computerHintPosition: ScreenPosition;
+  hoveredTarget: FocusMode | null;
+  hintPosition: ScreenPosition;
   viewDirection: ViewDirection;
-  onExitComputer: () => void;
+  onExitFocus: () => void;
   onRotateView: (step: -1 | 1) => void;
   onResetView: () => void;
 };
 
 export default function RoomHud({
   sceneMode,
-  isComputerHovered,
-  computerHintPosition,
+  hoveredTarget,
+  hintPosition,
   viewDirection,
-  onExitComputer,
+  onExitFocus,
   onRotateView,
   onResetView,
 }: RoomHudProps) {
@@ -36,26 +36,28 @@ export default function RoomHud({
         </section>
       ) : null}
 
-      {isComputerHovered &&
-      sceneMode === 'explore' &&
-      computerHintPosition.visible ? (
+      {hoveredTarget && sceneMode === 'explore' && hintPosition.visible ? (
         <div
           className="pointer-events-none absolute z-[4] -translate-x-1/2 -translate-y-full rounded-full border-2 border-[#4b382c]/20 bg-[#fff6df]/95 px-4 py-2 text-sm font-black text-[#4b382c] shadow-[0_12px_30px_rgba(67,42,28,0.2)]"
           style={{
-            left: `${computerHintPosition.x}px`,
-            top: `${computerHintPosition.y}px`,
+            left: `${hintPosition.x}px`,
+            top: `${hintPosition.y}px`,
           }}>
-          <span>Click computer screen</span>
+          <span>
+            {hoveredTarget === 'computer'
+              ? 'Click computer screen'
+              : 'Click TV screen'}
+          </span>
           <span className="absolute top-full left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-[5px] rotate-45 border-r-2 border-b-2 border-[#4b382c]/20 bg-[#fff6df]/95" />
         </div>
       ) : null}
 
-      {sceneMode === 'computer' ? (
+      {sceneMode !== 'explore' ? (
         <div className="pointer-events-none absolute inset-0 z-[5]">
           <button
             type="button"
             className="pointer-events-auto absolute top-0 bottom-0 left-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-start border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
-            onClick={onExitComputer}
+            onClick={onExitFocus}
             aria-label="Back to room from the left side">
             <span className="rounded-full border-2 border-[#fff6df]/70 bg-[#17110e]/58 px-3 py-2 text-xl font-black shadow-[0_10px_28px_rgba(20,12,8,0.28)]">
               {'<'}
@@ -64,7 +66,7 @@ export default function RoomHud({
           <button
             type="button"
             className="pointer-events-auto absolute top-0 right-0 bottom-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-end border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
-            onClick={onExitComputer}
+            onClick={onExitFocus}
             aria-label="Back to room from the right side">
             <span className="rounded-full border-2 border-[#fff6df]/70 bg-[#17110e]/58 px-3 py-2 text-xl font-black shadow-[0_10px_28px_rgba(20,12,8,0.28)]">
               {'>'}

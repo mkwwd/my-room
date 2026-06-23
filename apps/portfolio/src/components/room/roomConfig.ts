@@ -1,4 +1,5 @@
-export type SceneMode = 'explore' | 'computer';
+export type FocusMode = 'computer' | 'tv';
+export type SceneMode = 'explore' | FocusMode;
 
 export const ROOM = {
   width: 13.4,

@@ -1,15 +1,10 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import {
-  MODEL_TARGET_WIDTH,
   ROOM,
   ROOM_COLORS,
-  ROOM_MODELS,
-  TV_BOTTOM_HEIGHT,
   WALL_THICKNESS,
 } from './roomConfig';
-import { prepareModel } from './RoomModelUtils';
 
 export type RoomWalls = {
   back: THREE.Mesh;
@@ -104,7 +99,6 @@ export default class RoomEnvironment {
     this.root.add(this.lamp);
 
     this.walls = buildRoom(this.root, this.floorPickTargets);
-    this.loadWallTv();
   }
 
   update(elapsedTime: number) {
@@ -115,20 +109,5 @@ export default class RoomEnvironment {
     this.isDisposed = true;
     this.floorPickTargets.length = 0;
     this.scene.remove(this.root);
-  }
-
-  private loadWallTv() {
-    const anchor = new THREE.Group();
-    const backWallInnerZ = -ROOM.depth / 2 + 0.08;
-
-    anchor.position.set(0, TV_BOTTOM_HEIGHT, backWallInnerZ);
-    this.root.add(anchor);
-
-    new GLTFLoader().load(ROOM_MODELS.tv, (gltf) => {
-      if (this.isDisposed) return;
-
-      prepareModel(gltf.scene, MODEL_TARGET_WIDTH.tv);
-      anchor.add(gltf.scene);
-    });
   }
 }

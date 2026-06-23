@@ -6,32 +6,53 @@ import * as THREE from 'three';
 
 import ComputerDesktopLayer from '../computer/ComputerDesktopLayer';
 import ComputerStation from '../computer/ComputerStation';
-import { createComputerScreenTransform } from '../computer/computerScreenTransform';
 import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from '../computer/desktopConfig';
+import TvScreenLayer from '../tv/TvScreenLayer';
+import TvStation from '../tv/TvStation';
+import { TV_UI_HEIGHT, TV_UI_WIDTH } from '../tv/tvConfig';
 
 import { RoomCameraController, type ViewDirection } from './RoomCamera';
 import RoomCharacterController from './RoomCharacter';
-import { ROOM, type SceneMode } from './roomConfig';
+import { ROOM, type FocusMode, type SceneMode } from './roomConfig';
 import RoomEnvironment from './RoomEnvironment';
 import RoomHud from './RoomHud';
 import RoomInteractionController, {
   type ScreenPosition,
 } from './RoomInteractionController';
+import { createScreenTransform } from './screenTransform';
+
+function syncScreenLayer(
+  layer: HTMLDivElement | null,
+  transform: string | null,
+  isInteractive: boolean,
+) {
+  if (!layer) return;
+
+  if (transform) {
+    layer.style.visibility = 'visible';
+    layer.style.pointerEvents = isInteractive ? 'auto' : 'none';
+    layer.style.transform = transform;
+    return;
+  }
+
+  layer.style.visibility = 'hidden';
+  layer.style.pointerEvents = 'none';
+}
 
 export default function RoomScene() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const computerDesktopLayerRef = useRef<HTMLDivElement | null>(null);
+  const tvScreenLayerRef = useRef<HTMLDivElement | null>(null);
   const cameraControllerRef = useRef<RoomCameraController | null>(null);
   const sceneModeRef = useRef<SceneMode>('explore');
   const [viewDirection, setViewDirection] = useState<ViewDirection>(0);
   const [sceneMode, setSceneMode] = useState<SceneMode>('explore');
-  const [isComputerHovered, setIsComputerHovered] = useState(false);
-  const [computerHintPosition, setComputerHintPosition] =
-    useState<ScreenPosition>({
-      x: 0,
-      y: 0,
-      visible: false,
-    });
+  const [hoveredTarget, setHoveredTarget] = useState<FocusMode | null>(null);
+  const [hintPosition, setHintPosition] = useState<ScreenPosition>({
+    x: 0,
+    y: 0,
+    visible: false,
+  });
   const setView = (nextViewDirection: ViewDirection) => {
     cameraControllerRef.current?.setView(nextViewDirection);
     setViewDirection(nextViewDirection);
@@ -43,16 +64,16 @@ export default function RoomScene() {
     setViewDirection(nextViewDirection);
   };
 
-  const enterComputerMode = useCallback(() => {
-    sceneModeRef.current = 'computer';
-    setSceneMode('computer');
-    setIsComputerHovered(false);
+  const enterFocusMode = useCallback((target: FocusMode) => {
+    sceneModeRef.current = target;
+    setSceneMode(target);
+    setHoveredTarget(null);
   }, []);
 
-  const exitComputerMode = useCallback(() => {
+  const exitFocusMode = useCallback(() => {
     sceneModeRef.current = 'explore';
     setSceneMode('explore');
-    setIsComputerHovered(false);
+    setHoveredTarget(null);
   }, []);
 
   useEffect(() => {
@@ -71,6 +92,7 @@ export default function RoomScene() {
     mount.appendChild(renderer.domElement);
 
     const computerStation = new ComputerStation(scene);
+    const tvStation = new TvStation(scene);
 
     const cameraController = new RoomCameraController(
       mount.clientWidth / Math.max(mount.clientHeight, 1),
@@ -93,14 +115,17 @@ export default function RoomScene() {
     const interactionController = new RoomInteractionController({
       canvas: renderer.domElement,
       camera,
-      computerStation,
+      stations: {
+        computer: computerStation,
+        tv: tvStation,
+      },
       environment,
       character: characterController,
       getSceneMode: () => sceneModeRef.current,
-      onEnterComputer: enterComputerMode,
-      onExitComputer: exitComputerMode,
-      onComputerHoverChange: setIsComputerHovered,
-      onHintPositionChange: setComputerHintPosition,
+      onEnterFocus: enterFocusMode,
+      onExitFocus: exitFocusMode,
+      onHoverTargetChange: setHoveredTarget,
+      onHintPositionChange: setHintPosition,
     });
 
     const resize = () => {
@@ -122,35 +147,44 @@ export default function RoomScene() {
         viewRight,
       });
 
+      const focusedStation =
+        sceneModeRef.current === 'tv' ? tvStation : computerStation;
       cameraController.follow({
         frame: cameraFrame,
         mode: sceneModeRef.current,
         characterPosition: character.position,
-        focusPosition: computerStation.focusPosition,
-        focusTarget: computerStation.focusTarget,
+        focusPosition: focusedStation.focusPosition,
+        focusTarget: focusedStation.focusTarget,
       });
       const isComputerMode = sceneModeRef.current === 'computer';
-      const desktopLayer = computerDesktopLayerRef.current;
-      const screenViewport = computerStation.getScreenViewport(
+      const computerViewport = computerStation.getScreenViewport(
         camera,
         mount.clientWidth,
         mount.clientHeight,
       );
-      const screenTransform = screenViewport
-        ? createComputerScreenTransform(
-            screenViewport,
+      const computerTransform = computerViewport
+        ? createScreenTransform(
+            computerViewport,
             DESKTOP_UI_WIDTH,
             DESKTOP_UI_HEIGHT,
           )
         : null;
-      if (desktopLayer && screenTransform) {
-        desktopLayer.style.visibility = 'visible';
-        desktopLayer.style.pointerEvents = isComputerMode ? 'auto' : 'none';
-        desktopLayer.style.transform = screenTransform;
-      } else if (desktopLayer) {
-        desktopLayer.style.visibility = 'hidden';
-        desktopLayer.style.pointerEvents = 'none';
-      }
+      syncScreenLayer(
+        computerDesktopLayerRef.current,
+        computerTransform,
+        isComputerMode,
+      );
+
+      const isTvMode = sceneModeRef.current === 'tv';
+      const tvViewport = tvStation.getScreenViewport(
+        camera,
+        mount.clientWidth,
+        mount.clientHeight,
+      );
+      const tvTransform = tvViewport
+        ? createScreenTransform(tvViewport, TV_UI_WIDTH, TV_UI_HEIGHT)
+        : null;
+      syncScreenLayer(tvScreenLayerRef.current, tvTransform, isTvMode);
 
       interactionController.updateHint(mount.clientWidth, mount.clientHeight);
 
@@ -186,13 +220,14 @@ export default function RoomScene() {
         }
       });
       computerStation.dispose();
+      tvStation.dispose();
       environment.dispose();
       renderer.dispose();
       if (cameraControllerRef.current === cameraController) {
         cameraControllerRef.current = null;
       }
     };
-  }, [enterComputerMode, exitComputerMode]);
+  }, [enterFocusMode, exitFocusMode]);
 
   return (
     <div className="absolute inset-0">
@@ -203,14 +238,19 @@ export default function RoomScene() {
       <ComputerDesktopLayer
         ref={computerDesktopLayerRef}
         isFocused={sceneMode === 'computer'}
-        onClose={exitComputerMode}
+        onClose={exitFocusMode}
+      />
+      <TvScreenLayer
+        ref={tvScreenLayerRef}
+        isFocused={sceneMode === 'tv'}
+        onClose={exitFocusMode}
       />
       <RoomHud
         sceneMode={sceneMode}
-        isComputerHovered={isComputerHovered}
-        computerHintPosition={computerHintPosition}
+        hoveredTarget={hoveredTarget}
+        hintPosition={hintPosition}
         viewDirection={viewDirection}
-        onExitComputer={exitComputerMode}
+        onExitFocus={exitFocusMode}
         onRotateView={rotateView}
         onResetView={() => setView(0)}
       />
