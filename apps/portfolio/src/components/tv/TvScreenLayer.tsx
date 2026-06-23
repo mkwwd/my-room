@@ -2,16 +2,15 @@
 
 import { forwardRef } from 'react';
 
-import TvScreen from './TvScreen';
 import { TV_UI_HEIGHT, TV_UI_WIDTH } from './tvConfig';
+import TvScreen from './TvScreen';
 
 type TvScreenLayerProps = {
   isFocused: boolean;
-  onClose: () => void;
 };
 
 const TvScreenLayer = forwardRef<HTMLDivElement, TvScreenLayerProps>(
-  function TvScreenLayer({ isFocused, onClose }, ref) {
+  function TvScreenLayer({ isFocused }, ref) {
     return (
       <div
         ref={ref}
@@ -22,7 +21,7 @@ const TvScreenLayer = forwardRef<HTMLDivElement, TvScreenLayerProps>(
           transform: 'translate3d(-10000px, -10000px, 0) scale(0)',
         }}
         aria-hidden={!isFocused}>
-        <TvScreen isFocused={isFocused} onClose={onClose} />
+        <TvScreen />
       </div>
     );
   },

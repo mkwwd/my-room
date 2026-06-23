@@ -10,4 +10,24 @@ export const TV_SCREEN = {
   focusDistance: 5.9,
 } as const;
 
-export const YOUTUBE_URL = 'https://www.youtube.com/';
+export type TvIconId = 'youtube';
+
+export type TvIconConfig = {
+  id: TvIconId;
+  label: string;
+};
+
+export type YoutubeProfile = {
+  id: string;
+  name: string;
+  type: 'emoji' | 'initial';
+  value: string;
+  background: string;
+};
+
+export const tvIcons: TvIconConfig[] = [
+  {
+    id: 'youtube',
+    label: 'YouTube',
+  },
+];

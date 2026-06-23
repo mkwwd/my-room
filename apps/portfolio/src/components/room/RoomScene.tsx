@@ -243,7 +243,6 @@ export default function RoomScene() {
       <TvScreenLayer
         ref={tvScreenLayerRef}
         isFocused={sceneMode === 'tv'}
-        onClose={exitFocusMode}
       />
       <RoomHud
         sceneMode={sceneMode}
