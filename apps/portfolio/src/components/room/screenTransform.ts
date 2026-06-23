@@ -1,19 +1,19 @@
-export type ComputerScreenPoint = {
+export type ScreenPoint = {
   x: number;
   y: number;
 };
 
-export type ComputerScreenViewport = {
-  topLeft: ComputerScreenPoint;
-  topRight: ComputerScreenPoint;
-  bottomRight: ComputerScreenPoint;
-  bottomLeft: ComputerScreenPoint;
+export type ProjectedScreenViewport = {
+  topLeft: ScreenPoint;
+  topRight: ScreenPoint;
+  bottomRight: ScreenPoint;
+  bottomLeft: ScreenPoint;
 };
 
 const EPSILON = 0.000001;
 
-export function createComputerScreenTransform(
-  viewport: ComputerScreenViewport,
+export function createScreenTransform(
+  viewport: ProjectedScreenViewport,
   sourceWidth: number,
   sourceHeight: number,
 ) {
