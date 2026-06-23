@@ -61,7 +61,7 @@ export default function ComputerDesktop({
       }`}
       aria-label="Focused computer desktop">
       <div
-        className="relative h-full w-full overflow-hidden bg-[#ad63ad]"
+        className="relative h-full w-full overflow-hidden bg-[#131215]"
         ref={desktopRef}>
         {isFocused ? (
           <button
@@ -73,7 +73,7 @@ export default function ComputerDesktop({
           </button>
         ) : null}
 
-        <div className="absolute inset-x-0 top-0 bottom-10 overflow-hidden bg-[#ad63ad]">
+        <div className="absolute inset-x-0 top-0 bottom-10 overflow-hidden bg-[#131215]">
           {desktopIcons.map((icon) => (
             <DesktopIcon
               key={icon.id}

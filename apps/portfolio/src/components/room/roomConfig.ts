@@ -17,15 +17,15 @@ export const ROOM_COLORS = {
 export const WALL_THICKNESS = 0.32;
 
 export const ROOM_MODELS = {
-  desk: '/whitedesk.glb',
-  computerDesk: '/computerdesk.glb',
-  computer: '/computer.glb',
-  tv: '/tv.glb',
+  desk: '/models/whitedesk.glb',
+  computerDesk: '/models/computerdesk.glb',
+  computer: '/models/computer.glb',
+  tv: '/models/tv.glb',
 } as const;
 
 export const MODEL_TARGET_WIDTH = {
   desk: 4,
-  computerDesk: 2.4,
+  computerDesk: 2.5,
   computer: 1.8,
   tv: 5.4,
 } as const;

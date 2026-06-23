@@ -36,7 +36,7 @@ export const desktopIcons: DesktopIconConfig[] = [
     fallbackText: 'GH',
     fallbackTone: 'bg-[#232225] text-white',
     image: {
-      src: '/images/github_logo.png',
+      src: '/images/git.png',
       alt: 'Github logo',
     },
   },
@@ -46,7 +46,7 @@ export const desktopIcons: DesktopIconConfig[] = [
     fallbackText: 'P',
     fallbackTone: 'bg-[#f09a29] text-[#17110e]',
     image: {
-      src: '/images/github_logo.png',
+      src: '/images/project.png',
       alt: 'Github logo',
     },
   },
