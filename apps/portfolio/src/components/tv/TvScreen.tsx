@@ -18,7 +18,7 @@ function YouTubeAppIcon() {
 function TvAppIcon({ icon }: { icon: TvIconConfig }) {
   if (icon.id === 'youtube') {
     return (
-      <div className="grid size-[104px] place-items-center rounded-[30px] bg-white shadow-[0_16px_32px_rgba(0,0,0,0.35)] transition-colors duration-200 group-hover:bg-[#fff4f4] group-focus-visible:bg-[#fff4f4]">
+      <div className="grid size-[104px] place-items-center rounded-[10px] bg-white shadow-[0_16px_32px_rgba(0,0,0,0.35)] transition-colors duration-200 group-hover:bg-[#fff4f4] group-focus-visible:bg-[#fff4f4]">
         <YouTubeAppIcon />
       </div>
     );

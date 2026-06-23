@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 import type { YoutubeProfile } from './tvConfig';
 import YouTubeSearch from './YouTubeSearch';
@@ -101,13 +101,6 @@ export default function YouTubeWindow({ onClose }: YouTubeWindowProps) {
             <div className="ml-0.5 h-0 w-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-white" />
           </div>
           <span className="text-sm font-bold">YouTube</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-            aria-label="Close YouTube window">
-            <X size={18} />
-          </button>
         </div>
 
         {activePanel === 'search' && <YouTubeSearch />}
