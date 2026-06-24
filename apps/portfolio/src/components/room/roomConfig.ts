@@ -20,14 +20,22 @@ export const ROOM_MODELS = {
   desk: '/models/whitedesk.glb',
   computerDesk: '/models/computerdesk.glb',
   computer: '/models/computer.glb',
+  carpet: '/models/carpet.glb',
+  miniTable: '/models/minitable.glb',
+  pinkSofa: '/models/pinksofa.glb',
   tv: '/models/tv.glb',
+  vase: '/models/vase.glb',
 } as const;
 
 export const MODEL_TARGET_WIDTH = {
+  carpet: 5.4,
   desk: 4,
   computerDesk: 2.5,
   computer: 1.8,
+  miniTable: 1.55,
+  pinkSofa: 3.45,
   tv: 5.4,
+  vase: 0.38,
 } as const;
 
 export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;
