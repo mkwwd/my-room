@@ -3,9 +3,10 @@ export const DESKTOP_UI_HEIGHT = 630;
 export const DESKTOP_TASKBAR_HEIGHT = 40;
 export const DESKTOP_GRID_SIZE = 96;
 export const DESKTOP_ICON_STORAGE_KEY = 'my-room.desktop-icon-positions.v5';
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? '';
 
 export type DesktopIconId = 'github' | 'project' | 'contact';
-export type DesktopAppId = 'github';
+export type DesktopAppId = 'github' | 'contact';
 
 export type DesktopIconPosition = {
   x: number;
@@ -47,7 +48,7 @@ export const desktopIcons: DesktopIconConfig[] = [
     fallbackTone: 'bg-[#f09a29] text-[#17110e]',
     image: {
       src: '/images/project.png',
-      alt: 'Github logo',
+      alt: 'Project folder icon',
     },
   },
   {
@@ -57,7 +58,7 @@ export const desktopIcons: DesktopIconConfig[] = [
     fallbackTone: 'bg-[#55c6f2] text-[#17110e]',
     image: {
       src: '/images/github_logo.png',
-      alt: 'Github logo',
+      alt: 'Contact icon',
     },
   },
 ];
@@ -77,8 +78,14 @@ export const desktopApps: Record<DesktopAppId, DesktopAppConfig> = {
     title: 'Github',
     iconId: 'github',
   },
+  contact: {
+    id: 'contact',
+    title: 'Contact',
+    iconId: 'contact',
+  },
 };
 
 export const desktopAppByIcon: Partial<Record<DesktopIconId, DesktopAppId>> = {
   github: 'github',
+  contact: 'contact',
 };

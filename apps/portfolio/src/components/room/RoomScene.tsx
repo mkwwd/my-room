@@ -203,7 +203,6 @@ export default function RoomScene() {
       <ComputerDesktopLayer
         ref={computerDesktopLayerRef}
         isFocused={sceneMode === 'computer'}
-        onClose={exitComputerMode}
       />
       <RoomHud
         sceneMode={sceneMode}

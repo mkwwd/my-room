@@ -7,13 +7,12 @@ import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from './desktopConfig';
 
 type ComputerDesktopLayerProps = {
   isFocused: boolean;
-  onClose: () => void;
 };
 
 const ComputerDesktopLayer = forwardRef<
   HTMLDivElement,
   ComputerDesktopLayerProps
->(function ComputerDesktopLayer({ isFocused, onClose }, ref) {
+>(function ComputerDesktopLayer({ isFocused }, ref) {
   return (
     <div
       ref={ref}
@@ -24,7 +23,7 @@ const ComputerDesktopLayer = forwardRef<
         transform: 'translate3d(-10000px, -10000px, 0) scale(0)',
       }}
       aria-hidden={!isFocused}>
-      <ComputerDesktop isFocused={isFocused} onClose={onClose} />
+      <ComputerDesktop isFocused={isFocused} />
     </div>
   );
 });

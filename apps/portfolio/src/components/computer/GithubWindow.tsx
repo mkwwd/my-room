@@ -30,10 +30,10 @@ export default function GithubWindow({
 
   return (
     <article
-      className={`absolute top-[44px] left-[150px] z-[2] h-[500px] w-[850px] overflow-hidden rounded-sm border-2 ${
+      className={`absolute top-[44px] left-[150px] h-[500px] w-[850px] overflow-hidden rounded-sm border-2 ${
         isActive
-          ? 'border-[#f5f0da] shadow-[0_24px_60px_rgba(18,13,20,0.38)]'
-          : 'border-[#392a39] shadow-[0_16px_38px_rgba(18,13,20,0.24)]'
+          ? 'z-[4] border-[#f5f0da] shadow-[0_24px_60px_rgba(18,13,20,0.38)]'
+          : 'z-[2] border-[#392a39] shadow-[0_16px_38px_rgba(18,13,20,0.24)]'
       } bg-[#ffffff] text-[#24292f]`}
       onPointerDown={onActivate}
       aria-label="Github profile window">
