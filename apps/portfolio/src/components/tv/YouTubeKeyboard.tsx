@@ -80,7 +80,7 @@ function KeyboardButton({
     key: 'h-9 w-9 rounded-full text-base font-semibold text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
     side: 'h-9 w-[3.25rem] rounded-full text-sm font-black text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
     action:
-      'h-11 min-w-[8.25rem] rounded-xl bg-[#3f4a67] px-6 text-base font-black text-white/88 hover:bg-[#56637f] focus-visible:bg-[#56637f]',
+      'h-11 min-w-[8.25rem] rounded-xl bg-[#3a3a3a] px-6 text-base font-black text-white/88 hover:bg-white/20 focus-visible:bg-white/20',
     primary:
       'h-11 min-w-[8.25rem] rounded-xl bg-[#dfe8ff] px-6 text-base font-black text-[#172033] hover:bg-white focus-visible:bg-white',
   }[variant];
