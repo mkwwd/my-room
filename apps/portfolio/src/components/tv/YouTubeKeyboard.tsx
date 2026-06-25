@@ -113,7 +113,7 @@ export default function YouTubeKeyboard({
   };
 
   return (
-    <div className="space-y-3 rounded-3xl bg-[#121b30]/30 p-1 text-white [text-shadow:0_0_12px_rgba(173,201,255,0.7)]">
+    <div className="space-y-3 text-white [text-shadow:0_0_12px_rgba(173,201,255,0.7)]">
       <div className="space-y-4">
         {rows.map((row, rowIndex) => (
           <div
