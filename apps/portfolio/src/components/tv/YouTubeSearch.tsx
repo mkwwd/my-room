@@ -4,15 +4,10 @@ import { useEffect, useRef, useState, type WheelEvent } from 'react';
 
 import { Expand, Play, Search, X } from 'lucide-react';
 
+import YouTubeKeyboard from './YouTubeKeyboard';
+
 const MAX_SEARCH_HISTORY = 5;
 const SEARCH_HISTORY_KEY = 'youtube-search-histories';
-
-const keyboardRows = [
-  ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-  ['H', 'I', 'J', 'K', 'L', 'M', 'N'],
-  ['O', 'P', 'Q', 'R', 'S', 'T', 'U'],
-  ['V', 'W', 'X', 'Y', 'Z'],
-];
 
 type YouTubeVideo = {
   videoId: string;
@@ -72,7 +67,7 @@ export default function YouTubeSearch() {
   const resultScrollRef = useRef<HTMLDivElement>(null);
 
   const addKeyword = (key: string) => {
-    setKeyword((prev) => prev + key.toLowerCase());
+    setKeyword((prev) => prev + key);
   };
 
   const removeLastKeyword = () => {
@@ -165,7 +160,7 @@ export default function YouTubeSearch() {
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden pt-1">
-      <div className="flex h-12 max-w-[620px] shrink-0 items-center gap-3 rounded-full bg-[#2b2b2b] px-5">
+      <div className="flex h-12 max-w-[800px] shrink-0 items-center gap-3 rounded-full bg-[#2b2b2b] px-5">
         <Search size={20} className="text-white/70" />
 
         <input
@@ -210,48 +205,20 @@ export default function YouTubeSearch() {
           ))}
         </div>
 
-        <div className="space-y-3">
-          {keyboardRows.map((row) => (
-            <div key={row.join('')} className="flex gap-3">
-              {row.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => addKeyword(key)}
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-full text-sm font-semibold text-white/80 transition hover:bg-white/15">
-                  {key}
-                </button>
-              ))}
-            </div>
-          ))}
-
-          <div className="mt-5 flex gap-3">
-            <button
-              type="button"
-              onClick={() => addKeyword(' ')}
-              className="cursor-pointer rounded-full bg-[#3a3a3a] px-5 py-2 text-xs font-bold hover:bg-white/20">
-              SPACE
-            </button>
-
-            <button
-              type="button"
-              onClick={removeLastKeyword}
-              className="cursor-pointer rounded-full bg-[#3a3a3a] px-5 py-2 text-xs font-bold hover:bg-white/20">
-              DELETE
-            </button>
-
-            <button
-              type="button"
-              onClick={() => searchVideos()}
-              className="cursor-pointer rounded-full bg-white px-5 py-2 text-xs font-bold text-black hover:bg-white/80">
-              SEARCH
-            </button>
-          </div>
-        </div>
+        <YouTubeKeyboard
+          onInput={addKeyword}
+          onBackspace={removeLastKeyword}
+          onSpace={() => addKeyword(' ')}
+          onSearch={() => {
+            void searchVideos();
+          }}
+        />
       </div>
 
       <div className="mt-6 min-h-0 w-full min-w-0 flex-1 overflow-hidden">
-        {isLoading ? <p className="text-sm text-white/50">Searching...</p> : null}
+        {isLoading ? (
+          <p className="text-sm text-white/50">Searching...</p>
+        ) : null}
 
         {!isLoading && videos.length > 0 ? (
           <div
