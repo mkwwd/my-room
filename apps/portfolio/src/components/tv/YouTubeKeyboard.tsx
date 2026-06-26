@@ -9,7 +9,7 @@ type KeyboardLayout = 'english' | 'korean' | 'symbol';
 type LetterKeyboardLayout = Exclude<KeyboardLayout, 'symbol'>;
 
 type YouTubeKeyboardProps = {
-  onInput: (value: string) => void;
+  onInput: (value: string, type?: KeyboardLayout) => void;
   onBackspace: () => void;
   onSpace: () => void;
   onSearch: () => void;
@@ -77,20 +77,32 @@ const SYMBOL_ROWS: KeyboardKey[][] = [
   })),
 ];
 
+const KOREAN_DOUBLE_CONSONANTS: Partial<Record<string, string>> = {
+  '\u3131': '\u3132',
+  '\u3137': '\u3138',
+  '\u3142': '\u3143',
+  '\u3145': '\u3146',
+  '\u3148': '\u3149',
+};
+
 function KeyboardButton({
   children,
   label,
   onClick,
+  popupLabel,
+  onPopupClick,
   variant = 'key',
 }: {
   children: ReactNode;
   label: string;
   onClick: () => void;
+  popupLabel?: string;
+  onPopupClick?: () => void;
   variant?: 'key' | 'side' | 'action' | 'primary';
 }) {
   const variantClass = {
-    key: 'h-9 w-9 rounded-full text-base font-semibold text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
-    side: 'h-9 w-[3.25rem] rounded-full text-sm font-black text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
+    key: 'h-9 w-9 rounded-xl text-base font-semibold text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
+    side: 'h-9 w-[3.25rem] rounded-xl text-sm font-black text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
     action:
       'h-11 min-w-[8.25rem] rounded-xl bg-[#3a3a3a] px-6 text-base font-black text-white/88 hover:bg-white/20 focus-visible:bg-white/20',
     primary:
@@ -98,13 +110,28 @@ function KeyboardButton({
   }[variant];
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex cursor-pointer items-center justify-center transition-colors duration-200 ${variantClass}`}
-      aria-label={label}>
-      {children}
-    </button>
+    <span className="group/key relative inline-flex overflow-visible">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex cursor-pointer items-center justify-center transition-colors duration-200 ${variantClass}`}
+        aria-label={label}>
+        {children}
+      </button>
+
+      {popupLabel ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onPopupClick?.();
+          }}
+          className="pointer-events-none absolute bottom-[calc(100%-0.12rem)] left-1/2 z-30 flex h-10 w-10 -translate-x-1/2 -translate-y-full cursor-pointer items-center justify-center rounded-xl border border-white/20 bg-[#2d3340]/95 text-2xl font-semibold text-white/90 opacity-0 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur transition-opacity duration-150 hover:bg-white/15 focus-visible:bg-white/20 group-hover/key:pointer-events-auto group-hover/key:opacity-100 group-focus-within/key:pointer-events-auto group-focus-within/key:opacity-100"
+          aria-label={`Input ${popupLabel}`}>
+          {popupLabel}
+        </button>
+      ) : null}
+    </span>
   );
 }
 
@@ -147,16 +174,27 @@ export default function YouTubeKeyboard({
           <div
             key={`${layout}-${rowIndex}`}
             className="grid grid-cols-[repeat(7,2.25rem)_3.25rem] items-center gap-3">
-            {row.map((key) => (
-              <KeyboardButton
-                key={key.label}
-                label={`Input ${key.label}`}
-                onClick={() => onInput(key.value)}>
-                <span className="text-2xl leading-none">
-                  {key.label}
-                </span>
-              </KeyboardButton>
-            ))}
+            {row.map((key) => {
+              const doubleConsonant =
+                layout === 'korean'
+                  ? KOREAN_DOUBLE_CONSONANTS[key.value]
+                  : undefined;
+
+              return (
+                <KeyboardButton
+                  key={key.label}
+                  label={`Input ${key.label}`}
+                  onClick={() => onInput(key.value, layout)}
+                  popupLabel={doubleConsonant}
+                  onPopupClick={
+                    doubleConsonant
+                      ? () => onInput(doubleConsonant, layout)
+                      : undefined
+                  }>
+                  <span className="text-2xl leading-none">{key.label}</span>
+                </KeyboardButton>
+              );
+            })}
 
             {rowIndex === 0 ? (
               <KeyboardButton
