@@ -122,11 +122,14 @@ function KeyboardButton({
       {popupLabel ? (
         <button
           type="button"
+          onMouseDown={(event) => {
+            event.preventDefault();
+          }}
           onClick={(event) => {
             event.stopPropagation();
             onPopupClick?.();
           }}
-          className="pointer-events-none absolute bottom-[calc(100%-0.12rem)] left-1/2 z-30 flex h-10 w-10 -translate-x-1/2 -translate-y-full cursor-pointer items-center justify-center rounded-xl border border-white/20 bg-[#2d3340]/95 text-2xl font-semibold text-white/90 opacity-0 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur transition-opacity duration-150 hover:bg-white/15 focus-visible:bg-white/20 group-hover/key:pointer-events-auto group-hover/key:opacity-100 group-focus-within/key:pointer-events-auto group-focus-within/key:opacity-100"
+          className="pointer-events-none absolute bottom-[calc(100%-0.35rem)] left-1/2 z-30 flex h-10 w-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-xl border border-white/20 bg-[#2d3340]/95 text-2xl font-semibold text-white/90 opacity-0 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur transition-opacity duration-150 hover:bg-white/15 focus-visible:bg-white/20 group-hover/key:pointer-events-auto group-hover/key:opacity-100 group-focus-within/key:pointer-events-auto group-focus-within/key:opacity-100"
           aria-label={`Input ${popupLabel}`}>
           {popupLabel}
         </button>
