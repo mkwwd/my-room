@@ -152,10 +152,7 @@ export default function YouTubeKeyboard({
                 key={key.label}
                 label={`Input ${key.label}`}
                 onClick={() => onInput(key.value)}>
-                <span
-                  className={
-                    isKorean ? 'text-2xl' : isSymbol ? 'text-3xl' : undefined
-                  }>
+                <span className="text-2xl leading-none">
                   {key.label}
                 </span>
               </KeyboardButton>
