@@ -1,7 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { useState } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
+import { useRef, useState } from 'react';
 
 import { Delete, Globe } from 'lucide-react';
 
@@ -18,6 +18,11 @@ type YouTubeKeyboardProps = {
 type KeyboardKey = {
   label: string;
   value: string;
+};
+
+type KeyboardNavPosition = {
+  row: number;
+  col: number;
 };
 
 const ENGLISH_ROWS: KeyboardKey[][] = [
@@ -78,17 +83,18 @@ const SYMBOL_ROWS: KeyboardKey[][] = [
 ];
 
 const KOREAN_DOUBLE_CONSONANTS: Partial<Record<string, string>> = {
-  '\u3131': '\u3132',
-  '\u3137': '\u3138',
-  '\u3142': '\u3143',
-  '\u3145': '\u3146',
-  '\u3148': '\u3149',
+  ㄱ: 'ㄲ',
+  ㄷ: 'ㄸ',
+  ㅂ: 'ㅃ',
+  ㅅ: 'ㅆ',
+  ㅈ: 'ㅉ',
 };
 
 function KeyboardButton({
   children,
   label,
   onClick,
+  navPosition,
   popupLabel,
   onPopupClick,
   variant = 'key',
@@ -96,6 +102,7 @@ function KeyboardButton({
   children: ReactNode;
   label: string;
   onClick: () => void;
+  navPosition?: KeyboardNavPosition;
   popupLabel?: string;
   onPopupClick?: () => void;
   variant?: 'key' | 'side' | 'action' | 'primary';
@@ -114,6 +121,9 @@ function KeyboardButton({
       <button
         type="button"
         onClick={onClick}
+        data-youtube-keyboard-nav={navPosition ? 'true' : undefined}
+        data-youtube-keyboard-row={navPosition?.row}
+        data-youtube-keyboard-col={navPosition?.col}
         className={`flex cursor-pointer items-center justify-center transition-colors duration-200 ${variantClass}`}
         aria-label={label}>
         {children}
@@ -144,6 +154,7 @@ export default function YouTubeKeyboard({
   onSpace,
   onSearch,
 }: YouTubeKeyboardProps) {
+  const keyboardRef = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState<KeyboardLayout>('english');
   const [letterLayout, setLetterLayout] =
     useState<LetterKeyboardLayout>('english');
@@ -170,14 +181,96 @@ export default function YouTubeKeyboard({
     );
   };
 
+  const focusKeyboardButton = (row: number, col: number) => {
+    const keyboard = keyboardRef.current;
+
+    if (!keyboard) {
+      return;
+    }
+
+    const buttons = Array.from(
+      keyboard.querySelectorAll<HTMLButtonElement>(
+        '[data-youtube-keyboard-nav="true"]',
+      ),
+    );
+    const rowButtons = buttons.filter(
+      (button) => Number(button.dataset.youtubeKeyboardRow) === row,
+    );
+
+    if (rowButtons.length === 0) {
+      return;
+    }
+
+    const nextButton = rowButtons.reduce((nearestButton, button) => {
+      const nearestDistance = Math.abs(
+        Number(nearestButton.dataset.youtubeKeyboardCol) - col,
+      );
+      const buttonDistance = Math.abs(
+        Number(button.dataset.youtubeKeyboardCol) - col,
+      );
+
+      return buttonDistance < nearestDistance ? button : nearestButton;
+    }, rowButtons[0]);
+
+    nextButton.focus();
+  };
+
+  const handleKeyboardNavigation = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (
+      !['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(event.key)
+    ) {
+      return;
+    }
+
+    const currentButton =
+      event.target instanceof HTMLButtonElement
+        ? event.target.closest<HTMLButtonElement>(
+            '[data-youtube-keyboard-nav="true"]',
+          )
+        : null;
+
+    if (!currentButton) {
+      return;
+    }
+
+    const currentRow = Number(currentButton.dataset.youtubeKeyboardRow);
+    const currentCol = Number(currentButton.dataset.youtubeKeyboardCol);
+
+    if (!Number.isFinite(currentRow) || !Number.isFinite(currentCol)) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (event.key === 'ArrowLeft') {
+      focusKeyboardButton(currentRow, currentCol - 1);
+      return;
+    }
+
+    if (event.key === 'ArrowRight') {
+      focusKeyboardButton(currentRow, currentCol + 1);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      focusKeyboardButton(currentRow - 1, currentCol);
+      return;
+    }
+
+    focusKeyboardButton(currentRow + 1, currentCol);
+  };
+
   return (
-    <div className="space-y-3 text-white [text-shadow:0_0_12px_rgba(173,201,255,0.7)]">
+    <div
+      ref={keyboardRef}
+      onKeyDown={handleKeyboardNavigation}
+      className="space-y-3 text-white [text-shadow:0_0_12px_rgba(173,201,255,0.7)]">
       <div className="space-y-4">
         {rows.map((row, rowIndex) => (
           <div
             key={`${layout}-${rowIndex}`}
             className="grid grid-cols-[repeat(7,2.25rem)_3.25rem] items-center gap-3">
-            {row.map((key) => {
+            {row.map((key, keyIndex) => {
               const doubleConsonant =
                 layout === 'korean'
                   ? KOREAN_DOUBLE_CONSONANTS[key.value]
@@ -187,6 +280,7 @@ export default function YouTubeKeyboard({
                 <KeyboardButton
                   key={key.label}
                   label={`Input ${key.label}`}
+                  navPosition={{ row: rowIndex, col: keyIndex }}
                   onClick={() => onInput(key.value, layout)}
                   popupLabel={doubleConsonant}
                   onPopupClick={
@@ -202,6 +296,7 @@ export default function YouTubeKeyboard({
             {rowIndex === 0 ? (
               <KeyboardButton
                 label="Delete last search character"
+                navPosition={{ row: rowIndex, col: 7 }}
                 onClick={onBackspace}
                 variant="side">
                 <Delete size={23} strokeWidth={2.4} />
@@ -215,6 +310,7 @@ export default function YouTubeKeyboard({
                     ? 'Return to letter keyboard'
                     : 'Open symbol keyboard'
                 }
+                navPosition={{ row: rowIndex, col: 7 }}
                 onClick={toggleSymbolLayout}
                 variant="side">
                 {isSymbol ? 'ABC' : '&123'}
@@ -228,6 +324,7 @@ export default function YouTubeKeyboard({
                     ? 'Switch to English keyboard'
                     : 'Switch to Korean keyboard'
                 }
+                navPosition={{ row: rowIndex, col: 7 }}
                 onClick={toggleLayout}
                 variant="side">
                 <Globe size={25} strokeWidth={2.2} />
@@ -240,12 +337,17 @@ export default function YouTubeKeyboard({
       </div>
 
       <div className="flex gap-4 pt-2">
-        <KeyboardButton label="Insert space" onClick={onSpace} variant="action">
+        <KeyboardButton
+          label="Insert space"
+          navPosition={{ row: rows.length, col: 0 }}
+          onClick={onSpace}
+          variant="action">
           {useKoreanActions ? '스페이스' : 'SPACE'}
         </KeyboardButton>
 
         <KeyboardButton
           label="Delete last search character"
+          navPosition={{ row: rows.length, col: 1 }}
           onClick={onBackspace}
           variant="action">
           {useKoreanActions ? '지우기' : 'DELETE'}
@@ -253,6 +355,7 @@ export default function YouTubeKeyboard({
 
         <KeyboardButton
           label="Search YouTube"
+          navPosition={{ row: rows.length, col: 2 }}
           onClick={onSearch}
           variant="primary">
           {useKoreanActions ? '검색' : 'SEARCH'}
