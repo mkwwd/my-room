@@ -5,7 +5,8 @@ import { useState } from 'react';
 
 import { Delete, Globe } from 'lucide-react';
 
-type KeyboardLayout = 'english' | 'korean';
+type KeyboardLayout = 'english' | 'korean' | 'symbol';
+type LetterKeyboardLayout = Exclude<KeyboardLayout, 'symbol'>;
 
 type YouTubeKeyboardProps = {
   onInput: (value: string) => void;
@@ -39,30 +40,41 @@ const ENGLISH_ROWS: KeyboardKey[][] = [
 ];
 
 const KOREAN_ROWS: KeyboardKey[][] = [
-  ['\u3131', '\u3134', '\u3137', '\u3139', '\u3147', '\u3142', '\u3145'].map(
-    (key) => ({
-      label: key,
-      value: key,
-    }),
-  ),
-  ['\u3147', '\u3148', '\u314a', '\u314b', '\u314c', '\u314d', '\u314e'].map(
-    (key) => ({
-      label: key,
-      value: key,
-    }),
-  ),
-  ['\u314f', '\u3151', '\u3153', '\u3155', '\u3157', '\u315b', '\u315c'].map(
-    (key) => ({
-      label: key,
-      value: key,
-    }),
-  ),
-  ['\u3160', '\u3161', '\u3163', '\u3150', '\u3154', '\u3156', '\u315a'].map(
-    (key) => ({
-      label: key,
-      value: key,
-    }),
-  ),
+  ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ'].map((key) => ({
+    label: key,
+    value: key,
+  })),
+  ['ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'].map((key) => ({
+    label: key,
+    value: key,
+  })),
+  ['ㅏ', 'ㅑ', 'ㅓ', 'ㅕ', 'ㅗ', 'ㅛ', 'ㅜ'].map((key) => ({
+    label: key,
+    value: key,
+  })),
+  ['ㅠ', 'ㅡ', 'ㅣ', 'ㅐ', 'ㅒ', 'ㅔ', 'ㅖ'].map((key) => ({
+    label: key,
+    value: key,
+  })),
+];
+
+const SYMBOL_ROWS: KeyboardKey[][] = [
+  ['1', '2', '3', '&', '#', '(', ')'].map((key) => ({
+    label: key,
+    value: key,
+  })),
+  ['4', '5', '6', '@', '!', '?', ':'].map((key) => ({
+    label: key,
+    value: key,
+  })),
+  ['7', '8', '9', '.', '-', '_', '"'].map((key) => ({
+    label: key,
+    value: key,
+  })),
+  ['0', '/', '$', '%', '+', '[', ']'].map((key) => ({
+    label: key,
+    value: key,
+  })),
 ];
 
 function KeyboardButton({
@@ -103,12 +115,28 @@ export default function YouTubeKeyboard({
   onSearch,
 }: YouTubeKeyboardProps) {
   const [layout, setLayout] = useState<KeyboardLayout>('english');
-  const rows = layout === 'korean' ? KOREAN_ROWS : ENGLISH_ROWS;
+  const [letterLayout, setLetterLayout] =
+    useState<LetterKeyboardLayout>('english');
+  const rows =
+    layout === 'symbol'
+      ? SYMBOL_ROWS
+      : layout === 'korean'
+        ? KOREAN_ROWS
+        : ENGLISH_ROWS;
   const isKorean = layout === 'korean';
+  const isSymbol = layout === 'symbol';
+  const useKoreanActions = letterLayout === 'korean';
 
   const toggleLayout = () => {
+    const nextLayout = letterLayout === 'english' ? 'korean' : 'english';
+
+    setLetterLayout(nextLayout);
+    setLayout(nextLayout);
+  };
+
+  const toggleSymbolLayout = () => {
     setLayout((currentLayout) =>
-      currentLayout === 'english' ? 'korean' : 'english',
+      currentLayout === 'symbol' ? letterLayout : 'symbol',
     );
   };
 
@@ -124,7 +152,10 @@ export default function YouTubeKeyboard({
                 key={key.label}
                 label={`Input ${key.label}`}
                 onClick={() => onInput(key.value)}>
-                <span className={isKorean ? 'text-2xl' : undefined}>
+                <span
+                  className={
+                    isKorean ? 'text-2xl' : isSymbol ? 'text-3xl' : undefined
+                  }>
                   {key.label}
                 </span>
               </KeyboardButton>
@@ -141,10 +172,14 @@ export default function YouTubeKeyboard({
 
             {rowIndex === 1 ? (
               <KeyboardButton
-                label="Open symbol keyboard"
-                onClick={() => undefined}
+                label={
+                  isSymbol
+                    ? 'Return to letter keyboard'
+                    : 'Open symbol keyboard'
+                }
+                onClick={toggleSymbolLayout}
                 variant="side">
-                &amp;123
+                {isSymbol ? 'ABC' : '&123'}
               </KeyboardButton>
             ) : null}
 
@@ -168,21 +203,21 @@ export default function YouTubeKeyboard({
 
       <div className="flex gap-4 pt-2">
         <KeyboardButton label="Insert space" onClick={onSpace} variant="action">
-          {isKorean ? '\uc2a4\ud398\uc774\uc2a4' : 'SPACE'}
+          {useKoreanActions ? '스페이스' : 'SPACE'}
         </KeyboardButton>
 
         <KeyboardButton
           label="Delete last search character"
           onClick={onBackspace}
           variant="action">
-          {isKorean ? '\uc9c0\uc6b0\uae30' : 'DELETE'}
+          {useKoreanActions ? '지우기' : 'DELETE'}
         </KeyboardButton>
 
         <KeyboardButton
           label="Search YouTube"
           onClick={onSearch}
           variant="primary">
-          {isKorean ? '\uac80\uc0c9' : 'SEARCH'}
+          {useKoreanActions ? '검색' : 'SEARCH'}
         </KeyboardButton>
       </div>
     </div>
