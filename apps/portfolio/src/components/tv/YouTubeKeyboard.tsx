@@ -132,6 +132,10 @@ function KeyboardButton({
       {popupLabel ? (
         <button
           type="button"
+          tabIndex={-1}
+          data-youtube-keyboard-popup="true"
+          data-youtube-keyboard-popup-row={navPosition?.row}
+          data-youtube-keyboard-popup-col={navPosition?.col}
           onMouseDown={(event) => {
             event.preventDefault();
           }}
@@ -215,10 +219,55 @@ export default function YouTubeKeyboard({
     nextButton.focus();
   };
 
+  const focusPopupButton = (row: number, col: number) => {
+    const popupButton = keyboardRef.current?.querySelector<HTMLButtonElement>(
+      `[data-youtube-keyboard-popup="true"][data-youtube-keyboard-popup-row="${row}"][data-youtube-keyboard-popup-col="${col}"]`,
+    );
+
+    popupButton?.focus();
+    return Boolean(popupButton);
+  };
+
   const handleKeyboardNavigation = (event: KeyboardEvent<HTMLDivElement>) => {
     if (
       !['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(event.key)
     ) {
+      return;
+    }
+
+    const popupButton =
+      event.target instanceof HTMLButtonElement
+        ? event.target.closest<HTMLButtonElement>(
+            '[data-youtube-keyboard-popup="true"]',
+          )
+        : null;
+
+    if (popupButton) {
+      const parentRow = Number(popupButton.dataset.youtubeKeyboardPopupRow);
+      const parentCol = Number(popupButton.dataset.youtubeKeyboardPopupCol);
+
+      if (!Number.isFinite(parentRow) || !Number.isFinite(parentCol)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (event.key === 'ArrowDown') {
+        focusKeyboardButton(parentRow, parentCol);
+        return;
+      }
+
+      if (event.key === 'ArrowLeft') {
+        focusKeyboardButton(parentRow, parentCol - 1);
+        return;
+      }
+
+      if (event.key === 'ArrowRight') {
+        focusKeyboardButton(parentRow, parentCol + 1);
+        return;
+      }
+
+      focusKeyboardButton(parentRow - 1, parentCol);
       return;
     }
 
@@ -253,6 +302,10 @@ export default function YouTubeKeyboard({
     }
 
     if (event.key === 'ArrowUp') {
+      if (focusPopupButton(currentRow, currentCol)) {
+        return;
+      }
+
       focusKeyboardButton(currentRow - 1, currentCol);
       return;
     }
