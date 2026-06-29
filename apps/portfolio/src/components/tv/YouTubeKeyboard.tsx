@@ -105,15 +105,13 @@ function KeyboardButton({
   navPosition?: KeyboardNavPosition;
   popupLabel?: string;
   onPopupClick?: () => void;
-  variant?: 'key' | 'side' | 'action' | 'primary';
+  variant?: 'key' | 'side' | 'action';
 }) {
   const variantClass = {
-    key: 'h-9 w-9 rounded-xl text-base font-semibold text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
-    side: 'h-9 w-[3.25rem] rounded-xl text-sm font-black text-white/82 hover:bg-white/15 focus-visible:bg-white/20',
+    key: 'h-9 w-9 rounded-xl text-base font-semibold text-white/82 hover:bg-white hover:text-black focus-visible:bg-white/20',
+    side: 'h-9 w-[3.25rem] rounded-xl text-sm font-black text-white/82 hover:bg-white hover:text-black focus-visible:bg-white/20',
     action:
-      'h-11 min-w-[8.25rem] rounded-xl bg-[#3a3a3a] px-6 text-base font-black text-white/88 hover:bg-white/20 focus-visible:bg-white/20',
-    primary:
-      'h-11 min-w-[8.25rem] rounded-xl bg-[#dfe8ff] px-6 text-base font-black text-[#172033] hover:bg-white focus-visible:bg-white',
+      'h-11 min-w-[6.25rem] rounded-xl bg-[#3a3a3a] px-6 text-base font-black text-white/88 hover:bg-white/20 focus-visible:bg-white/20',
   }[variant];
 
   return (
@@ -143,7 +141,7 @@ function KeyboardButton({
             event.stopPropagation();
             onPopupClick?.();
           }}
-          className="pointer-events-none absolute bottom-[calc(100%-0.35rem)] left-1/2 z-30 flex h-10 w-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-xl border border-white/20 bg-[#2d3340]/95 text-2xl font-semibold text-white/90 opacity-0 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur transition-opacity duration-150 hover:bg-white/15 focus-visible:bg-white/20 group-hover/key:pointer-events-auto group-hover/key:opacity-100 group-focus-within/key:pointer-events-auto group-focus-within/key:opacity-100"
+          className="pointer-events-none absolute bottom-[calc(100%-0.25rem)] left-1/2 z-30 flex h-10 w-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-xl border border-white/20 bg-[#3a3a3a] text-2xl font-semibold text-white/90 opacity-0 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur transition-opacity duration-150 hover:bg-white hover:text-black focus-visible:bg-white/20 group-hover/key:pointer-events-auto group-hover/key:opacity-100 group-focus-within/key:pointer-events-auto group-focus-within/key:opacity-100"
           aria-label={`Input ${popupLabel}`}>
           {popupLabel}
         </button>
@@ -410,7 +408,7 @@ export default function YouTubeKeyboard({
           label="Search YouTube"
           navPosition={{ row: rows.length, col: 2 }}
           onClick={onSearch}
-          variant="primary">
+          variant="action">
           {useKoreanActions ? '검색' : 'SEARCH'}
         </KeyboardButton>
       </div>

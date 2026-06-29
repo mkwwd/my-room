@@ -58,20 +58,12 @@ export default function RoomHud({
             type="button"
             className="pointer-events-auto absolute top-0 bottom-0 left-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-start border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
             onClick={onExitFocus}
-            aria-label="Back to room from the left side">
-            <span className="rounded-full border-2 border-[#fff6df]/70 bg-[#17110e]/58 px-3 py-2 text-xl font-black shadow-[0_10px_28px_rgba(20,12,8,0.28)]">
-              {'<'}
-            </span>
-          </button>
+            aria-label="Back to room from the left side"></button>
           <button
             type="button"
             className="pointer-events-auto absolute top-0 right-0 bottom-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-end border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
             onClick={onExitFocus}
-            aria-label="Back to room from the right side">
-            <span className="rounded-full border-2 border-[#fff6df]/70 bg-[#17110e]/58 px-3 py-2 text-xl font-black shadow-[0_10px_28px_rgba(20,12,8,0.28)]">
-              {'>'}
-            </span>
-          </button>
+            aria-label="Back to room from the right side"></button>
         </div>
       ) : null}
 

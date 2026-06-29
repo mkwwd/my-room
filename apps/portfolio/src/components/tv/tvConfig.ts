@@ -15,14 +15,10 @@ export type TvIconId = 'youtube';
 export type TvIconConfig = {
   id: TvIconId;
   label: string;
-};
-
-export type YoutubeProfile = {
-  id: string;
-  name: string;
-  type: 'emoji' | 'initial';
-  value: string;
-  background: string;
+  image?: {
+    src: string;
+    alt: string;
+  };
 };
 
 export const tvIcons: TvIconConfig[] = [
@@ -31,3 +27,11 @@ export const tvIcons: TvIconConfig[] = [
     label: 'YouTube',
   },
 ];
+
+export type YoutubeProfile = {
+  id: string;
+  name: string;
+  type: 'emoji' | 'initial';
+  value: string;
+  background: string;
+};

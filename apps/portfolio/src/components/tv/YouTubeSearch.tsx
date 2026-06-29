@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type WheelEvent } from 'react';
 
+import * as hangul from 'hangul-js';
 import { Expand, Play, Search, X } from 'lucide-react';
 
 import YouTubeKeyboard from './YouTubeKeyboard';
@@ -18,6 +19,8 @@ type YouTubeVideo = {
   viewCount: string;
   duration: string;
 };
+
+type KeyboardLayout = 'english' | 'korean' | 'symbol';
 
 function formatViewCount(viewCount: string) {
   const count = Number(viewCount);
@@ -66,8 +69,15 @@ export default function YouTubeSearch() {
 
   const resultScrollRef = useRef<HTMLDivElement>(null);
 
-  const addKeyword = (key: string) => {
-    setKeyword((prev) => prev + key);
+  const addKeyword = (key: string, type?: KeyboardLayout) => {
+    if (type === 'korean') {
+      setKeyword((prev) => {
+        const disassembled = hangul.disassemble(prev + key);
+        return hangul.assemble(disassembled);
+      });
+    } else {
+      setKeyword((prev) => prev + key);
+    }
   };
 
   const removeLastKeyword = () => {
@@ -111,7 +121,7 @@ export default function YouTubeSearch() {
       setExpandedVideoId(null);
 
       const response = await fetch(
-        `/api?q=${encodeURIComponent(trimmedKeyword)}`,
+        `/api/youtube?q=${encodeURIComponent(trimmedKeyword)}`,
       );
       const data = await response.json();
 
