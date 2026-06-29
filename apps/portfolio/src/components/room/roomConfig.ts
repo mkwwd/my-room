@@ -32,10 +32,10 @@ export const MODEL_TARGET_WIDTH = {
   desk: 4,
   computerDesk: 2.5,
   computer: 1.8,
-  miniTable: 1.55,
-  pinkSofa: 3.45,
+  miniTable: 3,
+  pinkSofa: 8,
   tv: 5.4,
-  vase: 0.38,
+  vase: 1,
 } as const;
 
 export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;

@@ -6,9 +6,9 @@ import { prepareModel } from './RoomModelUtils';
 
 const LIVING_ROOM = {
   carpetPosition: new THREE.Vector3(0, 0.025, -5.35),
-  sofaPosition: new THREE.Vector3(0, 0.03, -3.95),
-  miniTablePosition: new THREE.Vector3(0, 0.03, -5.45),
-  vaseOffset: new THREE.Vector3(0.08, 0.02, -0.02),
+  sofaPosition: new THREE.Vector3(0, 0.03, -3),
+  miniTablePosition: new THREE.Vector3(-1.5, 0.03, -5),
+  vaseOffset: new THREE.Vector3(1.5, 0.02, -0.8),
   sofaRotationY: Math.PI,
   miniTableRotationY: 0,
 } as const;
