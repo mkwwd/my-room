@@ -9,7 +9,7 @@ export default function DesktopIconGraphic({
   icon: DesktopIconConfig;
   size?: 'desktop' | 'taskbar';
 }) {
-  const iconSize = size === 'desktop' ? 48 : 24;
+  const iconSize = size === 'desktop' ? 55 : 24;
   const sizeClass = size === 'desktop' ? 'h-12 w-12' : 'h-6 w-6';
   const textSizeClass = size === 'desktop' ? 'text-[10px]' : 'text-[9px]';
 

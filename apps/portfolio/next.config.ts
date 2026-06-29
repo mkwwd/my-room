@@ -1,7 +1,7 @@
-import type { NextConfig } from "next";
-import path from "node:path";
+import type { NextConfig } from 'next';
+import path from 'node:path';
 
-const workspaceRoot = path.resolve(process.cwd(), "../..");
+const workspaceRoot = path.resolve(process.cwd(), '../..');
 
 const nextConfig: NextConfig = {
   /* config options here */
