@@ -1,9 +1,15 @@
 import * as THREE from 'three';
 
-import ComputerStation from './ComputerStation';
 import type RoomCharacterController from './RoomCharacter';
-import type { SceneMode } from './roomConfig';
+import type { FocusMode, SceneMode } from './roomConfig';
 import type RoomEnvironment from './RoomEnvironment';
+
+const INTERACTION_TARGETS: FocusMode[] = ['computer', 'tv'];
+
+type InteractiveStation = {
+  hintAnchor: THREE.Vector3;
+  isPointerOver: (raycaster: THREE.Raycaster) => boolean;
+};
 
 export type ScreenPosition = {
   x: number;
@@ -14,13 +20,13 @@ export type ScreenPosition = {
 type RoomInteractionOptions = {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
-  computerStation: ComputerStation;
+  stations: Record<FocusMode, InteractiveStation>;
   environment: RoomEnvironment;
   character: RoomCharacterController;
   getSceneMode: () => SceneMode;
-  onEnterComputer: () => void;
-  onExitComputer: () => void;
-  onComputerHoverChange: (isHovering: boolean) => void;
+  onEnterFocus: (target: FocusMode) => void;
+  onExitFocus: () => void;
+  onHoverTargetChange: (target: FocusMode | null) => void;
   onHintPositionChange: (position: ScreenPosition) => void;
 };
 
@@ -28,7 +34,7 @@ export default class RoomInteractionController {
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private readonly projectedHint = new THREE.Vector3();
-  private isHoveringComputer = false;
+  private hoveredTarget: FocusMode | null = null;
   private lastHintPosition: ScreenPosition = { x: 0, y: 0, visible: false };
 
   constructor(private readonly options: RoomInteractionOptions) {
@@ -40,13 +46,13 @@ export default class RoomInteractionController {
   }
 
   updateHint(width: number, height: number) {
-    if (this.options.getSceneMode() !== 'explore' || !this.isHoveringComputer) {
+    if (this.options.getSceneMode() !== 'explore' || !this.hoveredTarget) {
       this.setHintPosition({ x: 0, y: 0, visible: false });
       return;
     }
 
     this.projectedHint
-      .copy(this.options.computerStation.hintAnchor)
+      .copy(this.options.stations[this.hoveredTarget].hintAnchor)
       .project(this.options.camera);
     this.setHintPosition({
       x: (this.projectedHint.x * 0.5 + 0.5) * width,
@@ -72,11 +78,11 @@ export default class RoomInteractionController {
     this.raycaster.setFromCamera(this.pointer, this.options.camera);
   }
 
-  private setComputerHover(nextIsHovering: boolean) {
-    if (this.isHoveringComputer === nextIsHovering) return;
+  private setHoveredTarget(nextTarget: FocusMode | null) {
+    if (this.hoveredTarget === nextTarget) return;
 
-    this.isHoveringComputer = nextIsHovering;
-    this.options.onComputerHoverChange(nextIsHovering);
+    this.hoveredTarget = nextTarget;
+    this.options.onHoverTargetChange(nextTarget);
   }
 
   private setHintPosition(nextPosition: ScreenPosition) {
@@ -99,15 +105,18 @@ export default class RoomInteractionController {
   }
 
   private readonly onPointerDown = (event: PointerEvent) => {
-    const { canvas, computerStation, environment, character } = this.options;
+    const { canvas, stations, environment, character } = this.options;
     canvas.focus();
 
-    if (this.options.getSceneMode() === 'computer') return;
+    if (this.options.getSceneMode() !== 'explore') return;
 
     this.updatePointer(event);
-    if (computerStation.isPointerOver(this.raycaster)) {
-      this.setComputerHover(false);
-      this.options.onEnterComputer();
+    const focusTarget = INTERACTION_TARGETS.find((target) =>
+      stations[target].isPointerOver(this.raycaster),
+    );
+    if (focusTarget) {
+      this.setHoveredTarget(null);
+      this.options.onEnterFocus(focusTarget);
       return;
     }
 
@@ -119,26 +128,29 @@ export default class RoomInteractionController {
   };
 
   private readonly onPointerMove = (event: PointerEvent) => {
-    const { canvas, computerStation } = this.options;
-    if (this.options.getSceneMode() === 'computer') {
+    const { canvas, stations } = this.options;
+    if (this.options.getSceneMode() !== 'explore') {
       canvas.style.cursor = 'default';
-      this.setComputerHover(false);
+      this.setHoveredTarget(null);
       return;
     }
 
     this.updatePointer(event);
-    const isHoveringComputer = computerStation.isPointerOver(this.raycaster);
-    canvas.style.cursor = isHoveringComputer ? 'pointer' : 'default';
-    this.setComputerHover(isHoveringComputer);
+    const hoveredTarget =
+      INTERACTION_TARGETS.find((target) =>
+        stations[target].isPointerOver(this.raycaster),
+      ) ?? null;
+    canvas.style.cursor = hoveredTarget ? 'pointer' : 'default';
+    this.setHoveredTarget(hoveredTarget);
   };
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
     if (
       (event.key === 'Escape' || event.key === 'Backspace') &&
-      this.options.getSceneMode() === 'computer'
+      this.options.getSceneMode() !== 'explore'
     ) {
       event.preventDefault();
-      this.options.onExitComputer();
+      this.options.onExitFocus();
       return;
     }
 

@@ -2,6 +2,8 @@
 
 import * as THREE from 'three';
 
+import type { SceneMode } from './roomConfig';
+
 const CAMERA_FOV = 42;
 const COMPUTER_CAMERA_FOV = 30;
 const CAMERA_DISTANCE = 10;
@@ -14,7 +16,7 @@ const QUARTER_TURN = Math.PI / 2;
 const FULL_TURN = Math.PI * 2;
 
 export type ViewDirection = 0 | 1 | 2 | 3;
-export type CameraMode = 'explore' | 'computer';
+export type CameraMode = SceneMode;
 
 type CameraFrame = {
   ease: number;
@@ -119,7 +121,7 @@ export class RoomCameraController {
       1.35,
     );
 
-    if (mode === 'computer') {
+    if (mode !== 'explore') {
       this.desiredPosition.copy(focusPosition);
       this.desiredLookAt.copy(focusTarget);
     } else {
@@ -136,7 +138,7 @@ export class RoomCameraController {
       this.desiredLookAt.y = CAMERA_LOOK_HEIGHT;
     }
 
-    const desiredFov = mode === 'computer' ? COMPUTER_CAMERA_FOV : CAMERA_FOV;
+    const desiredFov = mode !== 'explore' ? COMPUTER_CAMERA_FOV : CAMERA_FOV;
     this.camera.fov = THREE.MathUtils.lerp(
       this.camera.fov,
       desiredFov,
@@ -186,7 +188,7 @@ export default function RoomCameraControls({
       <button
         type="button"
         className={controlBaseClass}
-        onClick={() => onRotate(1)}
+        onClick={() => onRotate(-1)}
         aria-label="Rotate camera 90 degrees left">
         {'<'}
       </button>
@@ -202,7 +204,7 @@ export default function RoomCameraControls({
       <button
         type="button"
         className={controlBaseClass}
-        onClick={() => onRotate(-1)}
+        onClick={() => onRotate(1)}
         aria-label="Rotate camera 90 degrees right">
         {'>'}
       </button>
