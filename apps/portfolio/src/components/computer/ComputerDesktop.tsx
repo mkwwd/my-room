@@ -14,6 +14,7 @@ import DesktopIcon from './DesktopIcon';
 import DesktopTaskbar from './DesktopTaskbar';
 import GithubWindow from './GithubWindow';
 import useDesktopIcons from './useDesktopIcons';
+import VelogWindow from './VelogWindow';
 
 export default function ComputerDesktop({
   isFocused,
@@ -22,6 +23,8 @@ export default function ComputerDesktop({
 }) {
   const [openApps, setOpenApps] = useState<DesktopAppId[]>([]);
   const [activeApp, setActiveApp] = useState<DesktopAppId | null>(null);
+  const [minimizedApps, setMinimizedApps] = useState<DesktopAppId[]>([]);
+  const [maximizedApps, setMaximizedApps] = useState<DesktopAppId[]>([]);
   const {
     desktopRef,
     iconPositions,
@@ -36,11 +39,35 @@ export default function ComputerDesktop({
     if (!appId) return;
 
     setOpenApps((apps) => (apps.includes(appId) ? apps : [...apps, appId]));
+    setMinimizedApps((apps) => apps.filter((id) => id !== appId));
+    setActiveApp(appId);
+  };
+
+  const activateApp = (appId: DesktopAppId) => {
+    setMinimizedApps((apps) => apps.filter((id) => id !== appId));
+    setActiveApp(appId);
+  };
+
+  const minimizeApp = (appId: DesktopAppId) => {
+    setMinimizedApps((apps) =>
+      apps.includes(appId) ? apps : [...apps, appId],
+    );
+    setActiveApp((currentApp) => (currentApp === appId ? null : currentApp));
+  };
+
+  const toggleMaximizeApp = (appId: DesktopAppId) => {
+    setMaximizedApps((apps) =>
+      apps.includes(appId)
+        ? apps.filter((id) => id !== appId)
+        : [...apps, appId],
+    );
     setActiveApp(appId);
   };
 
   const closeApp = (appId: DesktopAppId) => {
     setOpenApps((apps) => apps.filter((openAppId) => openAppId !== appId));
+    setMinimizedApps((apps) => apps.filter((id) => id !== appId));
+    setMaximizedApps((apps) => apps.filter((id) => id !== appId));
     setActiveApp((currentApp) => (currentApp === appId ? null : currentApp));
   };
 
@@ -75,19 +102,36 @@ export default function ComputerDesktop({
             />
           ))}
 
-          {openApps.includes('github') ? (
+          {openApps.includes('github') && !minimizedApps.includes('github') ? (
             <GithubWindow
               isActive={activeApp === 'github'}
+              isMaximized={maximizedApps.includes('github')}
               onActivate={() => setActiveApp('github')}
+              onMinimize={() => minimizeApp('github')}
+              onToggleMaximize={() => toggleMaximizeApp('github')}
               onClose={() => closeApp('github')}
             />
           ) : null}
 
-          {openApps.includes('contact') ? (
+          {openApps.includes('contact') && !minimizedApps.includes('contact') ? (
             <ContactWindow
               isActive={activeApp === 'contact'}
+              isMaximized={maximizedApps.includes('contact')}
               onActivate={() => setActiveApp('contact')}
+              onMinimize={() => minimizeApp('contact')}
+              onToggleMaximize={() => toggleMaximizeApp('contact')}
               onClose={() => closeApp('contact')}
+            />
+          ) : null}
+
+          {openApps.includes('velog') && !minimizedApps.includes('velog') ? (
+            <VelogWindow
+              isActive={activeApp === 'velog'}
+              isMaximized={maximizedApps.includes('velog')}
+              onActivate={() => setActiveApp('velog')}
+              onMinimize={() => minimizeApp('velog')}
+              onToggleMaximize={() => toggleMaximizeApp('velog')}
+              onClose={() => closeApp('velog')}
             />
           ) : null}
         </div>
@@ -95,7 +139,7 @@ export default function ComputerDesktop({
         <DesktopTaskbar
           openApps={openApps}
           activeApp={activeApp}
-          onActivateApp={setActiveApp}
+          onActivateApp={activateApp}
         />
       </div>
     </section>

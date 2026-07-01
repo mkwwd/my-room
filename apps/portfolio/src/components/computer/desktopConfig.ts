@@ -3,10 +3,8 @@ export const DESKTOP_UI_HEIGHT = 630;
 export const DESKTOP_TASKBAR_HEIGHT = 40;
 export const DESKTOP_GRID_SIZE = 96;
 export const DESKTOP_ICON_STORAGE_KEY = 'my-room.desktop-icon-positions.v5';
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? '';
-
-export type DesktopIconId = 'github' | 'project' | 'contact';
-export type DesktopAppId = 'github' | 'contact';
+export type DesktopIconId = 'github' | 'velog' | 'project' | 'contact';
+export type DesktopAppId = 'github' | 'velog' | 'contact';
 
 export type DesktopIconPosition = {
   x: number;
@@ -42,6 +40,12 @@ export const desktopIcons: DesktopIconConfig[] = [
     },
   },
   {
+    id: 'velog',
+    label: 'Velog',
+    fallbackText: 'V',
+    fallbackTone: 'bg-[#20c997] text-white',
+  },
+  {
     id: 'project',
     label: 'Project',
     fallbackText: 'P',
@@ -68,8 +72,9 @@ export const defaultDesktopIconPositions: Record<
   DesktopIconPosition
 > = {
   github: { x: 26, y: 24 },
-  project: { x: 26, y: 120 },
-  contact: { x: 26, y: 216 },
+  velog: { x: 26, y: 120 },
+  project: { x: 26, y: 216 },
+  contact: { x: 26, y: 312 },
 };
 
 export const desktopApps: Record<DesktopAppId, DesktopAppConfig> = {
@@ -77,6 +82,11 @@ export const desktopApps: Record<DesktopAppId, DesktopAppConfig> = {
     id: 'github',
     title: 'Github',
     iconId: 'github',
+  },
+  velog: {
+    id: 'velog',
+    title: 'Velog',
+    iconId: 'velog',
   },
   contact: {
     id: 'contact',
@@ -87,5 +97,6 @@ export const desktopApps: Record<DesktopAppId, DesktopAppConfig> = {
 
 export const desktopAppByIcon: Partial<Record<DesktopIconId, DesktopAppId>> = {
   github: 'github',
+  velog: 'velog',
   contact: 'contact',
 };
