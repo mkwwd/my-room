@@ -82,7 +82,6 @@ export async function POST(request: Request) {
       }
     } else if (provider === 'naver') {
       const transporter = nodemailer.createTransport({
-        service: '://naver,com',
         host: 'smtp.naver.com',
         port: 587,
         secure: false,
@@ -107,10 +106,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error('메일 서버 내부 오류', err);
+  } catch (error: unknown) {
+    console.error('메일 서버 내부 오류', error);
     return NextResponse.json(
-      { message: err.message || '서버 오류가 발생했습니다.' },
+      { message: '서버 오류가 발생했습니다.' },
       { status: 500 },
     );
   }
