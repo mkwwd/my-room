@@ -1,15 +1,11 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import {
-  MODEL_TARGET_WIDTH,
   ROOM,
   ROOM_COLORS,
-  ROOM_MODELS,
-  TV_BOTTOM_HEIGHT,
   WALL_THICKNESS,
 } from './roomConfig';
-import { prepareModel } from './RoomModelUtils';
+import RoomFurniture from './RoomFurniture';
 
 export type RoomWalls = {
   back: THREE.Mesh;
@@ -92,7 +88,7 @@ export default class RoomEnvironment {
 
   private readonly root = new THREE.Group();
   private readonly lamp = new THREE.PointLight('#ffd59a', 1.35, 10);
-  private isDisposed = false;
+  private readonly furniture: RoomFurniture;
 
   constructor(private readonly scene: THREE.Scene) {
     scene.background = new THREE.Color(ROOM_COLORS.sky);
@@ -104,7 +100,7 @@ export default class RoomEnvironment {
     this.root.add(this.lamp);
 
     this.walls = buildRoom(this.root, this.floorPickTargets);
-    this.loadWallTv();
+    this.furniture = new RoomFurniture(this.root);
   }
 
   update(elapsedTime: number) {
@@ -112,23 +108,8 @@ export default class RoomEnvironment {
   }
 
   dispose() {
-    this.isDisposed = true;
     this.floorPickTargets.length = 0;
+    this.furniture.dispose();
     this.scene.remove(this.root);
-  }
-
-  private loadWallTv() {
-    const anchor = new THREE.Group();
-    const backWallInnerZ = -ROOM.depth / 2 + 0.08;
-
-    anchor.position.set(0, TV_BOTTOM_HEIGHT, backWallInnerZ);
-    this.root.add(anchor);
-
-    new GLTFLoader().load(ROOM_MODELS.tv, (gltf) => {
-      if (this.isDisposed) return;
-
-      prepareModel(gltf.scene, MODEL_TARGET_WIDTH.tv);
-      anchor.add(gltf.scene);
-    });
   }
 }

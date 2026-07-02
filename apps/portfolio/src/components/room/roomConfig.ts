@@ -1,4 +1,5 @@
-export type SceneMode = 'explore' | 'computer';
+export type FocusMode = 'computer' | 'tv';
+export type SceneMode = 'explore' | FocusMode;
 
 export const ROOM = {
   width: 13.4,
@@ -20,14 +21,22 @@ export const ROOM_MODELS = {
   desk: '/models/whitedesk.glb',
   computerDesk: '/models/computerdesk.glb',
   computer: '/models/computer.glb',
+  carpet: '/models/carpet.glb',
+  miniTable: '/models/minitable.glb',
+  pinkSofa: '/models/pinksofa.glb',
   tv: '/models/tv.glb',
+  vase: '/models/vase.glb',
 } as const;
 
 export const MODEL_TARGET_WIDTH = {
+  carpet: 5.4,
   desk: 4,
   computerDesk: 2.5,
   computer: 1.8,
+  miniTable: 3,
+  pinkSofa: 8,
   tv: 5.4,
+  vase: 1,
 } as const;
 
 export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;

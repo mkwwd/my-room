@@ -14,8 +14,8 @@ import {
   ROOM,
   ROOM_MODELS,
 } from '../room/roomConfig';
+import ProjectedScreen from '../room/ProjectedScreen';
 import { prepareModel } from '../room/RoomModelUtils';
-
 function softenComputerWarmHighlights(object: THREE.Object3D) {
   object.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
@@ -48,7 +48,7 @@ function softenComputerWarmHighlights(object: THREE.Object3D) {
   });
 }
 
-import type { ComputerScreenViewport } from './computerScreenTransform';
+import type { ProjectedScreenViewport } from '../room/screenTransform';
 
 const COMPUTER_MODEL_HEIGHT_SCALE = 1;
 const COMPUTER_MODEL_DEPTH_SCALE = 0.015;
@@ -61,44 +61,7 @@ export default class ComputerStation {
   private readonly loader = new GLTFLoader();
   private readonly anchor = new THREE.Group();
   private readonly pickTargets: THREE.Object3D[] = [];
-  private readonly localScreenCorners = [
-    new THREE.Vector3(
-      COMPUTER_SCREEN.centerX - COMPUTER_SCREEN.width / 2,
-      COMPUTER_SCREEN.centerY + COMPUTER_SCREEN.height / 2,
-      COMPUTER_SCREEN.centerZ,
-    ),
-    new THREE.Vector3(
-      COMPUTER_SCREEN.centerX + COMPUTER_SCREEN.width / 2,
-      COMPUTER_SCREEN.centerY + COMPUTER_SCREEN.height / 2,
-      COMPUTER_SCREEN.centerZ,
-    ),
-    new THREE.Vector3(
-      COMPUTER_SCREEN.centerX + COMPUTER_SCREEN.width / 2,
-      COMPUTER_SCREEN.centerY - COMPUTER_SCREEN.height / 2,
-      COMPUTER_SCREEN.centerZ,
-    ),
-    new THREE.Vector3(
-      COMPUTER_SCREEN.centerX - COMPUTER_SCREEN.width / 2,
-      COMPUTER_SCREEN.centerY - COMPUTER_SCREEN.height / 2,
-      COMPUTER_SCREEN.centerZ,
-    ),
-  ];
-  private readonly projectedScreenCorners = Array.from(
-    { length: 4 },
-    () => new THREE.Vector3(),
-  );
-  private readonly screenViewport: ComputerScreenViewport = {
-    topLeft: { x: 0, y: 0 },
-    topRight: { x: 0, y: 0 },
-    bottomRight: { x: 0, y: 0 },
-    bottomLeft: { x: 0, y: 0 },
-  };
-  private readonly screenViewportPoints = [
-    this.screenViewport.topLeft,
-    this.screenViewport.topRight,
-    this.screenViewport.bottomRight,
-    this.screenViewport.bottomLeft,
-  ];
+  private readonly projectedScreen = new ProjectedScreen(COMPUTER_SCREEN);
   private isScreenReady = false;
   private isDisposed = false;
 
@@ -119,25 +82,14 @@ export default class ComputerStation {
     camera: THREE.Camera,
     viewportWidth: number,
     viewportHeight: number,
-  ): ComputerScreenViewport | null {
+  ): ProjectedScreenViewport | null {
     if (!this.isScreenReady) return null;
-
-    this.anchor.updateMatrixWorld(true);
-    camera.updateMatrixWorld();
-
-    for (let index = 0; index < this.localScreenCorners.length; index += 1) {
-      const projectedCorner = this.projectedScreenCorners[index]
-        .copy(this.localScreenCorners[index])
-        .applyMatrix4(this.anchor.matrixWorld)
-        .project(camera);
-      if (projectedCorner.z < -1 || projectedCorner.z > 1) return null;
-
-      const viewportPoint = this.screenViewportPoints[index];
-      viewportPoint.x = (projectedCorner.x * 0.5 + 0.5) * viewportWidth;
-      viewportPoint.y = (-projectedCorner.y * 0.5 + 0.5) * viewportHeight;
-    }
-
-    return this.screenViewport;
+    return this.projectedScreen.project(
+      this.anchor,
+      camera,
+      viewportWidth,
+      viewportHeight,
+    );
   }
 
   dispose() {

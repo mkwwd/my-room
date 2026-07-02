@@ -18,8 +18,10 @@ import VelogWindow from './VelogWindow';
 
 export default function ComputerDesktop({
   isFocused,
+  onClose,
 }: {
   isFocused: boolean;
+  onClose: () => void;
 }) {
   const [openApps, setOpenApps] = useState<DesktopAppId[]>([]);
   const [activeApp, setActiveApp] = useState<DesktopAppId | null>(null);
@@ -89,6 +91,15 @@ export default function ComputerDesktop({
       <div
         className="relative h-full w-full overflow-hidden bg-[#131215]"
         ref={desktopRef}>
+        {isFocused ? (
+          <button
+            type="button"
+            className="absolute top-3 right-3 z-[5] grid h-8 w-8 cursor-pointer place-items-center rounded-full border-2 border-white/70 bg-[#191319]/72 text-base leading-none font-black text-white shadow-[0_10px_26px_rgba(20,12,8,0.3)] transition-colors duration-200 hover:bg-[#3f2a3f] focus-visible:bg-[#3f2a3f]"
+            onClick={onClose}
+            aria-label="Close computer desktop">
+            x
+          </button>
+        ) : null}
         <div className="absolute inset-x-0 top-0 bottom-10 overflow-hidden bg-[#131215]">
           {desktopIcons.map((icon) => (
             <DesktopIcon
