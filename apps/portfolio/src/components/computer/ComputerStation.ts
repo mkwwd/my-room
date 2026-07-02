@@ -16,6 +16,38 @@ import {
 } from '../room/roomConfig';
 import ProjectedScreen from '../room/ProjectedScreen';
 import { prepareModel } from '../room/RoomModelUtils';
+function softenComputerWarmHighlights(object: THREE.Object3D) {
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+
+    const softenedMaterials = materials.map((material) => {
+      const softenedMaterial = material.clone();
+
+      if (
+        softenedMaterial instanceof THREE.MeshStandardMaterial ||
+        softenedMaterial instanceof THREE.MeshPhysicalMaterial
+      ) {
+        softenedMaterial.roughness = Math.max(softenedMaterial.roughness, 0.85);
+        softenedMaterial.metalness = Math.min(softenedMaterial.metalness, 0.12);
+        softenedMaterial.envMapIntensity = Math.min(
+          softenedMaterial.envMapIntensity,
+          0.45,
+        );
+      }
+
+      return softenedMaterial;
+    });
+
+    child.material = Array.isArray(child.material)
+      ? softenedMaterials
+      : softenedMaterials[0];
+  });
+}
+
 import type { ProjectedScreenViewport } from '../room/screenTransform';
 
 const COMPUTER_MODEL_HEIGHT_SCALE = 1;
@@ -111,6 +143,7 @@ export default class ComputerStation {
       correctedComputer.add(gltf.scene);
       computerModel.add(correctedComputer);
       prepareModel(computerModel, MODEL_TARGET_WIDTH.computer);
+      softenComputerWarmHighlights(computerModel);
       computerAnchor.position.set(-0.1, COMPUTER_BASE_HEIGHT, -0.01);
       computerAnchor.add(computerModel);
       this.anchor.add(computerAnchor);
