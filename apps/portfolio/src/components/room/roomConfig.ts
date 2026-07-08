@@ -1,4 +1,4 @@
-export type FocusMode = 'computer' | 'tv';
+export type FocusMode = 'computer' | 'tv' | 'window';
 export type SceneMode = 'explore' | FocusMode;
 
 export const ROOM = {
@@ -11,11 +11,22 @@ export const ROOM = {
 
 export const ROOM_COLORS = {
   sky: '#c9ecff',
+  nightSky: '#030b1c',
   floor: '#ffffff',
   wall: '#e7f7ff',
 } as const;
 
 export const WALL_THICKNESS = 0.32;
+
+export const ROOM_WINDOW = {
+  width: 3.2,
+  height: 4,
+  bottomHeight: 2.05,
+  centerZ: -3.65,
+  dayStartsAt: 6,
+  nightStartsAt: 20,
+  focusDistance: 8.4,
+} as const;
 
 export const ROOM_MODELS = {
   desk: '/models/whitedesk.glb',
@@ -26,6 +37,11 @@ export const ROOM_MODELS = {
   pinkSofa: '/models/pinksofa.glb',
   tv: '/models/tv.glb',
   vase: '/models/vase.glb',
+  window: '/models/glass_window.glb',
+  moon: '/models/moon.glb',
+  cloud1: '/models/cloud1.glb',
+  cloud2: '/models/cloud2.glb',
+  cloud3: '/models/cloud3.glb',
 } as const;
 
 export const MODEL_TARGET_WIDTH = {
@@ -37,6 +53,7 @@ export const MODEL_TARGET_WIDTH = {
   pinkSofa: 8,
   tv: 5.4,
   vase: 1,
+  window: 3.2,
 } as const;
 
 export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;

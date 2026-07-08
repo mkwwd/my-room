@@ -46,7 +46,9 @@ export default function RoomHud({
           <span>
             {hoveredTarget === 'computer'
               ? 'Click computer screen'
-              : 'Click TV screen'}
+              : hoveredTarget === 'tv'
+                ? 'Click TV screen'
+                : 'Click window'}
           </span>
           <span className="absolute top-full left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-[5px] rotate-45 border-r-2 border-b-2 border-[#4b382c]/20 bg-[#fff6df]/95" />
         </div>

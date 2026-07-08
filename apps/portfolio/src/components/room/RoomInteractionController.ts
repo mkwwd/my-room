@@ -4,7 +4,7 @@ import type RoomCharacterController from './RoomCharacter';
 import type { FocusMode, SceneMode } from './roomConfig';
 import type RoomEnvironment from './RoomEnvironment';
 
-const INTERACTION_TARGETS: FocusMode[] = ['computer', 'tv'];
+const INTERACTION_TARGETS: FocusMode[] = ['computer', 'tv', 'window'];
 
 type InteractiveStation = {
   hintAnchor: THREE.Vector3;
@@ -146,7 +146,7 @@ export default class RoomInteractionController {
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
     if (
-      (event.key === 'Escape' || event.key === 'Backspace') &&
+      event.key === 'Escape' &&
       this.options.getSceneMode() !== 'explore'
     ) {
       event.preventDefault();

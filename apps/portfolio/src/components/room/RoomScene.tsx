@@ -118,6 +118,7 @@ export default function RoomScene() {
       stations: {
         computer: computerStation,
         tv: tvStation,
+        window: environment.roomWindow,
       },
       environment,
       character: characterController,
@@ -148,7 +149,11 @@ export default function RoomScene() {
       });
 
       const focusedStation =
-        sceneModeRef.current === 'tv' ? tvStation : computerStation;
+        sceneModeRef.current === 'tv'
+          ? tvStation
+          : sceneModeRef.current === 'window'
+            ? environment.roomWindow
+            : computerStation;
       cameraController.follow({
         frame: cameraFrame,
         mode: sceneModeRef.current,
