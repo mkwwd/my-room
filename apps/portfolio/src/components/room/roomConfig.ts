@@ -72,7 +72,7 @@ export const COMPUTER_SCREEN = {
   centerX: -0.1,
   centerY: COMPUTER_BASE_HEIGHT + 0.71,
   centerZ: 0,
-  width: 1.64,
-  height: 0.99,
+  width: 1.72,
+  height: 1.04,
   focusDistance: 2.45,
 } as const;

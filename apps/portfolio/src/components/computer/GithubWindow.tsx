@@ -3,6 +3,7 @@
 import { desktopIcons } from './desktopConfig';
 import DesktopIconGraphic from './DesktopIconGraphic';
 import useGithubProfile, { GITHUB_PROFILE_URL } from './useGithubProfile';
+import WindowControls from './WindowControls';
 
 function formatGithubDate(updatedAt: string) {
   const date = new Date(updatedAt);
@@ -17,11 +18,17 @@ function formatGithubDate(updatedAt: string) {
 
 export default function GithubWindow({
   isActive,
+  isMaximized,
   onActivate,
+  onMinimize,
+  onToggleMaximize,
   onClose,
 }: {
   isActive: boolean;
+  isMaximized: boolean;
   onActivate: () => void;
+  onMinimize: () => void;
+  onToggleMaximize: () => void;
   onClose: () => void;
 }) {
   const githubIcon = desktopIcons.find((icon) => icon.id === 'github');
@@ -30,11 +37,12 @@ export default function GithubWindow({
 
   return (
     <article
-      className={`absolute top-[44px] left-[150px] z-[2] h-[500px] w-[850px] overflow-hidden rounded-sm border-2 ${
+      className={`absolute top-[44px] left-[150px] h-[500px] w-[850px] overflow-hidden rounded-sm border-2 ${
         isActive
-          ? 'border-[#f5f0da] shadow-[0_24px_60px_rgba(18,13,20,0.38)]'
-          : 'border-[#392a39] shadow-[0_16px_38px_rgba(18,13,20,0.24)]'
+          ? 'z-[4] border-[#f5f0da] shadow-[0_24px_60px_rgba(18,13,20,0.38)]'
+          : 'z-[2] border-[#392a39] shadow-[0_16px_38px_rgba(18,13,20,0.24)]'
       } bg-[#ffffff] text-[#24292f]`}
+      style={isMaximized ? { top: 0, left: 0, width: '100%', height: '100%' } : undefined}
       onPointerDown={onActivate}
       aria-label="Github profile window">
       <div className="flex h-9 items-center justify-between border-b-2 border-[#1f1a20] bg-[#211b26] px-3 text-white">
@@ -44,16 +52,13 @@ export default function GithubWindow({
           ) : null}
           <span>Github</span>
         </div>
-        <button
-          type="button"
-          className="grid h-6 w-6 cursor-pointer place-items-center rounded-sm border border-white/35 bg-[#5b405c] text-sm leading-none font-black text-white transition-colors duration-200 hover:bg-[#7e557e] focus-visible:bg-[#7e557e]"
-          onClick={(event) => {
-            event.stopPropagation();
-            onClose();
-          }}
-          aria-label="Close Github window">
-          x
-        </button>
+        <WindowControls
+          appName="Github"
+          isMaximized={isMaximized}
+          onMinimize={onMinimize}
+          onToggleMaximize={onToggleMaximize}
+          onClose={onClose}
+        />
       </div>
 
       <div className="flex h-8 items-center gap-2 border-b border-[#d0d7de] bg-[#f6f8fa] px-3 text-xs font-bold text-[#57606a]">
