@@ -57,7 +57,7 @@ function decodeHtml(text: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const apiKey = process.env.YOUTUBE_API_KEY;
+  const apiKey = process.env.GOOGLE_API_KEY;
   const keyword = request.nextUrl.searchParams.get('q');
 
   if (!apiKey) {

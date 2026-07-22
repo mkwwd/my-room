@@ -159,13 +159,15 @@ export class RoomCameraController {
     walls: CameraWalls,
     roomWidth: number,
     roomDepth: number,
+    roomCenterZ = 0,
   ) {
     const halfWidth = roomWidth / 2;
-    const halfDepth = roomDepth / 2;
+    const roomBack = roomCenterZ - roomDepth / 2;
+    const roomFront = roomCenterZ + roomDepth / 2;
     const margin = 0.35;
 
-    walls.front.visible = this.camera.position.z < halfDepth + margin;
-    walls.back.visible = this.camera.position.z > -halfDepth - margin;
+    walls.front.visible = this.camera.position.z < roomFront + margin;
+    walls.back.visible = this.camera.position.z > roomBack - margin;
     walls.right.visible = this.camera.position.x < halfWidth + margin;
     walls.left.visible = this.camera.position.x > -halfWidth - margin;
   }

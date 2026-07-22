@@ -17,6 +17,14 @@ export const ROOM_COLORS = {
 } as const;
 
 export const WALL_THICKNESS = 0.32;
+export const ROOM_FRONT_CROP = 1.4;
+export const ROOM_DEPTH_BOUNDS = {
+  back: -ROOM.depth / 2,
+  front: ROOM.depth / 2 - ROOM_FRONT_CROP,
+  depth: ROOM.depth - ROOM_FRONT_CROP,
+  centerZ: -ROOM_FRONT_CROP / 2,
+  sideWallCenterZ: -ROOM_FRONT_CROP / 2 - WALL_THICKNESS / 2,
+} as const;
 
 export const ROOM_WINDOW = {
   width: 3.2,
@@ -24,7 +32,7 @@ export const ROOM_WINDOW = {
   bottomHeight: 2.05,
   centerZ: -3.65,
   dayStartsAt: 6,
-  nightStartsAt: 20,
+  nightStartsAt: 9,
   focusDistance: 8.4,
 } as const;
 
@@ -42,18 +50,28 @@ export const ROOM_MODELS = {
   cloud1: '/models/cloud1.glb',
   cloud2: '/models/cloud2.glb',
   cloud3: '/models/cloud3.glb',
+  clock: '/models/wall_clock.glb',
+  cabinet: '/models/modern_desk.glb',
+  bikini2: '/models/bikiini2.glb',
+  toystory: '/models/toystory.glb',
+  clownfish: '/models/clownfish.glb',
+  tulip: '/models/tulip.glb',
 } as const;
 
 export const MODEL_TARGET_WIDTH = {
   carpet: 5.4,
-  desk: 4,
-  computerDesk: 2.5,
+  desk: 3.7,
+  computerDesk: 2,
   computer: 1.8,
   miniTable: 3,
   pinkSofa: 8,
   tv: 5.4,
   vase: 1,
   window: 3.2,
+  clock: 1.65,
+  toystory: 3,
+  clownfish: 0.28,
+  tulip: 0.62,
 } as const;
 
 export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;

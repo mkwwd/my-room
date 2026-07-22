@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   MODEL_TARGET_WIDTH,
   ROOM,
+  ROOM_DEPTH_BOUNDS,
   ROOM_MODELS,
   ROOM_WINDOW,
   WALL_THICKNESS,
@@ -76,7 +77,7 @@ export default class RoomWindow {
     this.root.position.set(
       WALL_THICKNESS / 2 + 0.05,
       ROOM_WINDOW.bottomHeight - ROOM.wallHeight / 2,
-      ROOM_WINDOW.centerZ + WALL_THICKNESS / 2,
+      ROOM_WINDOW.centerZ - ROOM_DEPTH_BOUNDS.sideWallCenterZ,
     );
     leftWall.add(this.root);
 

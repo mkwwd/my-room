@@ -9,6 +9,7 @@ import {
   type DesktopAppId,
   type DesktopIconId,
 } from './desktopConfig';
+import CalendarWindow from './CalendarWindow';
 import ContactWindow from './ContactWindow';
 import DesktopIcon from './DesktopIcon';
 import DesktopTaskbar from './DesktopTaskbar';
@@ -124,7 +125,8 @@ export default function ComputerDesktop({
             />
           ) : null}
 
-          {openApps.includes('contact') && !minimizedApps.includes('contact') ? (
+          {openApps.includes('contact') &&
+          !minimizedApps.includes('contact') ? (
             <ContactWindow
               isActive={activeApp === 'contact'}
               isMaximized={maximizedApps.includes('contact')}
@@ -143,6 +145,18 @@ export default function ComputerDesktop({
               onMinimize={() => minimizeApp('velog')}
               onToggleMaximize={() => toggleMaximizeApp('velog')}
               onClose={() => closeApp('velog')}
+            />
+          ) : null}
+
+          {openApps.includes('calendar') &&
+          !minimizedApps.includes('calendar') ? (
+            <CalendarWindow
+              isActive={activeApp === 'calendar'}
+              isMaximized={maximizedApps.includes('calendar')}
+              onActivate={() => setActiveApp('calendar')}
+              onMinimize={() => minimizeApp('calendar')}
+              onToggleMaximize={() => toggleMaximizeApp('calendar')}
+              onClose={() => closeApp('calendar')}
             />
           ) : null}
         </div>

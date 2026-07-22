@@ -8,6 +8,8 @@ const CHARACTER_MOVEMENT_THRESHOLD = 0.0002;
 type RoomCharacterOptions = {
   limitX: number;
   limitZ: number;
+  limitBackZ?: number;
+  limitFrontZ?: number;
   initialPosition: [number, number, number];
 };
 
@@ -168,8 +170,8 @@ export default class RoomCharacterController {
     );
     this.targetPosition.z = THREE.MathUtils.clamp(
       this.targetPosition.z,
-      -this.options.limitZ,
-      this.options.limitZ,
+      -(this.options.limitBackZ ?? this.options.limitZ),
+      this.options.limitFrontZ ?? this.options.limitZ,
     );
   }
 }

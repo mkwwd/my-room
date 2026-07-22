@@ -13,7 +13,12 @@ import { TV_UI_HEIGHT, TV_UI_WIDTH } from '../tv/tvConfig';
 
 import { RoomCameraController, type ViewDirection } from './RoomCamera';
 import RoomCharacterController from './RoomCharacter';
-import { ROOM, type FocusMode, type SceneMode } from './roomConfig';
+import {
+  ROOM,
+  ROOM_DEPTH_BOUNDS,
+  type FocusMode,
+  type SceneMode,
+} from './roomConfig';
 import RoomEnvironment from './RoomEnvironment';
 import RoomHud from './RoomHud';
 import RoomInteractionController, {
@@ -84,6 +89,7 @@ export default function RoomScene() {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.localClippingEnabled = true;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -105,6 +111,8 @@ export default function RoomScene() {
     const characterController = new RoomCharacterController({
       limitX: ROOM.playerLimitX,
       limitZ: ROOM.playerLimitZ,
+      limitBackZ: ROOM.playerLimitZ,
+      limitFrontZ: ROOM_DEPTH_BOUNDS.front - 0.35,
       initialPosition: [0, 0, 0.25],
     });
     const character = characterController.object;
@@ -196,7 +204,8 @@ export default function RoomScene() {
       cameraController.updateWallVisibility(
         environment.walls,
         ROOM.width,
-        ROOM.depth,
+        ROOM_DEPTH_BOUNDS.depth,
+        ROOM_DEPTH_BOUNDS.centerZ,
       );
       environment.update(clock.elapsedTime);
 
