@@ -223,6 +223,7 @@ function makeShelfGlowTexture() {
 
 export default class RoomFurniture {
   private readonly root = new THREE.Group();
+  private readonly rightWallDecor = new THREE.Group();
   private readonly loader = new GLTFLoader();
   private readonly shelfWallTexture = makeShelfWallTexture();
   private readonly shelfGlowTexture = makeShelfGlowTexture();
@@ -233,13 +234,14 @@ export default class RoomFurniture {
 
   constructor(private readonly parent: THREE.Object3D) {
     parent.add(this.root);
+    this.root.add(this.rightWallDecor);
 
     this.loadCarpet();
     this.loadSofa();
     this.loadMiniTableWithVase();
     this.addRightWallShelves();
     this.loadToystoryShelfDecor();
-    this.aquarium = new RoomAquarium(this.root);
+    this.aquarium = new RoomAquarium(this.rightWallDecor);
     //this.loadWallClock();
   }
 
@@ -272,12 +274,14 @@ export default class RoomFurniture {
     targetWidth,
     position,
     rotationY = 0,
+    parent = this.root,
     onReady,
   }: {
     path: string;
     targetWidth: number;
     position: THREE.Vector3;
     rotationY?: number;
+    parent?: THREE.Object3D;
     onReady?: (model: THREE.Object3D) => void;
   }) {
     this.loader.load(path, (gltf) => {
@@ -286,7 +290,7 @@ export default class RoomFurniture {
       gltf.scene.rotation.y = rotationY;
       prepareModel(gltf.scene, targetWidth);
       gltf.scene.position.copy(position);
-      this.root.add(gltf.scene);
+      parent.add(gltf.scene);
       onReady?.(gltf.scene);
     });
   }
@@ -402,7 +406,7 @@ export default class RoomFurniture {
       },
     );
 
-    this.root.add(shelfGroup);
+    this.rightWallDecor.add(shelfGroup);
   }
 
   private loadToystoryShelfDecor() {
@@ -412,6 +416,7 @@ export default class RoomFurniture {
     this.loadPlacedModel({
       path: ROOM_MODELS.toystory,
       targetWidth: MODEL_TARGET_WIDTH.toystory,
+      parent: this.rightWallDecor,
       position: new THREE.Vector3(
         rightWallX - RIGHT_WALL_TOYSTORY.xOffsetFromWall,
         shelf.y + RIGHT_WALL_TOYSTORY.yOffset,

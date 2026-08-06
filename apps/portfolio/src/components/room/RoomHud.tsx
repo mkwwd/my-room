@@ -1,16 +1,23 @@
 import RoomCameraControls, { type ViewDirection } from './RoomCamera';
-import type { FocusMode, SceneMode } from './roomConfig';
+import type { RoomHoverTarget, SceneMode } from './roomConfig';
 import type { ScreenPosition } from './RoomInteractionController';
 
 type RoomHudProps = {
   sceneMode: SceneMode;
-  hoveredTarget: FocusMode | null;
+  hoveredTarget: RoomHoverTarget | null;
   hintPosition: ScreenPosition;
   viewDirection: ViewDirection;
   onExitFocus: () => void;
   onRotateView: (step: -1 | 1) => void;
   onResetView: () => void;
 };
+
+function getInteractionHint(target: RoomHoverTarget) {
+  if (target === 'computer') return 'Click computer screen';
+  if (target === 'tv') return 'Click TV screen';
+  if (target === 'window') return 'Click window';
+  return 'Click sofa to sit';
+}
 
 export default function RoomHud({
   sceneMode,
@@ -31,7 +38,8 @@ export default function RoomHud({
             My Room
           </p>
           <span className="max-w-60 text-sm leading-[1.45] font-extrabold opacity-[0.88]">
-            WASD / Arrow keys or click the floor to move
+            WASD / Arrow keys or click the floor to move / Press E near sofa to
+            sit
           </span>
         </section>
       ) : null}
@@ -43,13 +51,7 @@ export default function RoomHud({
             left: `${hintPosition.x}px`,
             top: `${hintPosition.y}px`,
           }}>
-          <span>
-            {hoveredTarget === 'computer'
-              ? 'Click computer screen'
-              : hoveredTarget === 'tv'
-                ? 'Click TV screen'
-                : 'Click window'}
-          </span>
+          <span>{getInteractionHint(hoveredTarget)}</span>
           <span className="absolute top-full left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-[5px] rotate-45 border-r-2 border-b-2 border-[#4b382c]/20 bg-[#fff6df]/95" />
         </div>
       ) : null}

@@ -1,10 +1,28 @@
 import * as THREE from 'three';
 
 import type RoomCharacterController from './RoomCharacter';
-import type { FocusMode, SceneMode } from './roomConfig';
+import {
+  ROOM_SOFA_INTERACTION,
+  type FocusMode,
+  type RoomHoverTarget,
+  type SceneMode,
+} from './roomConfig';
 import type RoomEnvironment from './RoomEnvironment';
 
 const INTERACTION_TARGETS: FocusMode[] = ['computer', 'tv', 'window'];
+const SOFA_PICK_BOX = new THREE.Box3(
+  new THREE.Vector3(
+    ROOM_SOFA_INTERACTION.center[0] - ROOM_SOFA_INTERACTION.halfSize[0],
+    ROOM_SOFA_INTERACTION.center[1] - ROOM_SOFA_INTERACTION.halfSize[1],
+    ROOM_SOFA_INTERACTION.center[2] - ROOM_SOFA_INTERACTION.halfSize[2],
+  ),
+  new THREE.Vector3(
+    ROOM_SOFA_INTERACTION.center[0] + ROOM_SOFA_INTERACTION.halfSize[0],
+    ROOM_SOFA_INTERACTION.center[1] + ROOM_SOFA_INTERACTION.halfSize[1],
+    ROOM_SOFA_INTERACTION.center[2] + ROOM_SOFA_INTERACTION.halfSize[2],
+  ),
+);
+const SOFA_HINT_ANCHOR = new THREE.Vector3(...ROOM_SOFA_INTERACTION.hintAnchor);
 
 type InteractiveStation = {
   hintAnchor: THREE.Vector3;
@@ -26,7 +44,7 @@ type RoomInteractionOptions = {
   getSceneMode: () => SceneMode;
   onEnterFocus: (target: FocusMode) => void;
   onExitFocus: () => void;
-  onHoverTargetChange: (target: FocusMode | null) => void;
+  onHoverTargetChange: (target: RoomHoverTarget | null) => void;
   onHintPositionChange: (position: ScreenPosition) => void;
 };
 
@@ -34,7 +52,7 @@ export default class RoomInteractionController {
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private readonly projectedHint = new THREE.Vector3();
-  private hoveredTarget: FocusMode | null = null;
+  private hoveredTarget: RoomHoverTarget | null = null;
   private lastHintPosition: ScreenPosition = { x: 0, y: 0, visible: false };
 
   constructor(private readonly options: RoomInteractionOptions) {
@@ -51,9 +69,7 @@ export default class RoomInteractionController {
       return;
     }
 
-    this.projectedHint
-      .copy(this.options.stations[this.hoveredTarget].hintAnchor)
-      .project(this.options.camera);
+    this.projectedHint.copy(this.getHintAnchor()).project(this.options.camera);
     this.setHintPosition({
       x: (this.projectedHint.x * 0.5 + 0.5) * width,
       y: (-this.projectedHint.y * 0.5 + 0.5) * height,
@@ -78,11 +94,31 @@ export default class RoomInteractionController {
     this.raycaster.setFromCamera(this.pointer, this.options.camera);
   }
 
-  private setHoveredTarget(nextTarget: FocusMode | null) {
+  private setHoveredTarget(nextTarget: RoomHoverTarget | null) {
     if (this.hoveredTarget === nextTarget) return;
 
     this.hoveredTarget = nextTarget;
     this.options.onHoverTargetChange(nextTarget);
+  }
+
+  private getHintAnchor() {
+    if (!this.hoveredTarget || this.hoveredTarget === 'sofa') {
+      return SOFA_HINT_ANCHOR;
+    }
+
+    return this.options.stations[this.hoveredTarget].hintAnchor;
+  }
+
+  private isPointerOverSofa() {
+    return this.raycaster.ray.intersectsBox(SOFA_PICK_BOX);
+  }
+
+  private getHoveredTarget() {
+    return (
+      INTERACTION_TARGETS.find((target) =>
+        this.options.stations[target].isPointerOver(this.raycaster),
+      ) ?? (this.isPointerOverSofa() ? 'sofa' : null)
+    );
   }
 
   private setHintPosition(nextPosition: ScreenPosition) {
@@ -120,6 +156,11 @@ export default class RoomInteractionController {
       return;
     }
 
+    if (this.isPointerOverSofa()) {
+      this.setHoveredTarget(null);
+      if (character.tryToggleSofaSit({ ignoreDistance: true })) return;
+    }
+
     const floorHit = this.raycaster.intersectObjects(
       environment.floorPickTargets,
       false,
@@ -128,7 +169,7 @@ export default class RoomInteractionController {
   };
 
   private readonly onPointerMove = (event: PointerEvent) => {
-    const { canvas, stations } = this.options;
+    const { canvas } = this.options;
     if (this.options.getSceneMode() !== 'explore') {
       canvas.style.cursor = 'default';
       this.setHoveredTarget(null);
@@ -136,21 +177,24 @@ export default class RoomInteractionController {
     }
 
     this.updatePointer(event);
-    const hoveredTarget =
-      INTERACTION_TARGETS.find((target) =>
-        stations[target].isPointerOver(this.raycaster),
-      ) ?? null;
+    const hoveredTarget = this.getHoveredTarget();
     canvas.style.cursor = hoveredTarget ? 'pointer' : 'default';
     this.setHoveredTarget(hoveredTarget);
   };
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
-    if (
-      event.key === 'Escape' &&
-      this.options.getSceneMode() !== 'explore'
-    ) {
+    if (event.key === 'Escape' && this.options.getSceneMode() !== 'explore') {
       event.preventDefault();
       this.options.onExitFocus();
+      return;
+    }
+
+    if (
+      event.key.toLowerCase() === 'e' &&
+      this.options.getSceneMode() === 'explore' &&
+      this.options.character.tryToggleSofaSit()
+    ) {
+      event.preventDefault();
       return;
     }
 

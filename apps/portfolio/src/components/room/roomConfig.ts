@@ -1,5 +1,13 @@
 export type FocusMode = 'computer' | 'tv' | 'window';
 export type SceneMode = 'explore' | FocusMode;
+export type RoomHoverTarget = FocusMode | 'sofa';
+
+export type RoomCollisionBox = {
+  centerX: number;
+  centerZ: number;
+  halfWidth: number;
+  halfDepth: number;
+};
 
 export const ROOM = {
   width: 13.4,
@@ -52,9 +60,12 @@ export const ROOM_MODELS = {
   cloud3: '/models/cloud3.glb',
   clock: '/models/wall_clock.glb',
   cabinet: '/models/modern_desk.glb',
+  bikini1: '/models/bikini1.glb',
   bikini2: '/models/bikiini2.glb',
   toystory: '/models/toystory.glb',
   clownfish: '/models/clownfish.glb',
+  cat: '/models/cat.glb',
+  character: '/models/doll.glb?v=decimated-20260723',
   tulip: '/models/tulip.glb',
 } as const;
 
@@ -71,6 +82,7 @@ export const MODEL_TARGET_WIDTH = {
   clock: 1.65,
   toystory: 3,
   clownfish: 0.28,
+  cat: 1.12,
   tulip: 0.62,
 } as const;
 
@@ -93,4 +105,50 @@ export const COMPUTER_SCREEN = {
   width: 1.72,
   height: 1.04,
   focusDistance: 2.45,
+} as const;
+
+export const ROOM_COLLISION_BOXES: RoomCollisionBox[] = [
+  {
+    centerX: 0,
+    centerZ: -3.38,
+    halfWidth: 4.2,
+    halfDepth: 0.42,
+  },
+  {
+    centerX: -1.5,
+    centerZ: -5,
+    halfWidth: 1.65,
+    halfDepth: 0.9,
+  },
+  {
+    centerX: -ROOM.width / 2 + COMPUTER_STATION_WALL_INSET,
+    centerZ: 2,
+    halfWidth: 1,
+    halfDepth: 2.05,
+  },
+  {
+    centerX: 0,
+    centerZ: -ROOM.depth / 2 + 0.42,
+    halfWidth: 3.15,
+    halfDepth: 0.56,
+  },
+  {
+    centerX: ROOM.width / 2 - 0.75,
+    centerZ: 1.75,
+    halfWidth: 0.95,
+    halfDepth: 2.25,
+  },
+];
+
+export const ROOM_SOFA_SEAT = {
+  position: [0, 0.92, -3.56],
+  exitPosition: [0.75, 0, -4.24],
+  rotationY: Math.PI,
+  interactionRadius: 1.65,
+} as const;
+
+export const ROOM_SOFA_INTERACTION = {
+  center: [0, 1.28, -3],
+  halfSize: [2.1, 1.25, 1.35],
+  hintAnchor: [0, 2.45, -3.56],
 } as const;

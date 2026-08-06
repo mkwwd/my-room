@@ -12,11 +12,15 @@ import TvStation from '../tv/TvStation';
 import { TV_UI_HEIGHT, TV_UI_WIDTH } from '../tv/tvConfig';
 
 import { RoomCameraController, type ViewDirection } from './RoomCamera';
+import RoomCatController from './RoomCat';
 import RoomCharacterController from './RoomCharacter';
 import {
   ROOM,
+  ROOM_COLLISION_BOXES,
   ROOM_DEPTH_BOUNDS,
+  ROOM_SOFA_SEAT,
   type FocusMode,
+  type RoomHoverTarget,
   type SceneMode,
 } from './roomConfig';
 import RoomEnvironment from './RoomEnvironment';
@@ -52,7 +56,9 @@ export default function RoomScene() {
   const sceneModeRef = useRef<SceneMode>('explore');
   const [viewDirection, setViewDirection] = useState<ViewDirection>(0);
   const [sceneMode, setSceneMode] = useState<SceneMode>('explore');
-  const [hoveredTarget, setHoveredTarget] = useState<FocusMode | null>(null);
+  const [hoveredTarget, setHoveredTarget] = useState<RoomHoverTarget | null>(
+    null,
+  );
   const [hintPosition, setHintPosition] = useState<ScreenPosition>({
     x: 0,
     y: 0,
@@ -87,10 +93,14 @@ export default function RoomScene() {
 
     const scene = new THREE.Scene();
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.localClippingEnabled = true;
-    renderer.shadowMap.enabled = true;
+    const renderer = new THREE.WebGLRenderer({
+      antialias: false,
+      alpha: false,
+      powerPreference: 'high-performance',
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+    renderer.localClippingEnabled = false;
+    renderer.shadowMap.enabled = false;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.style.position = 'absolute';
@@ -114,9 +124,17 @@ export default function RoomScene() {
       limitBackZ: ROOM.playerLimitZ,
       limitFrontZ: ROOM_DEPTH_BOUNDS.front - 0.35,
       initialPosition: [0, 0, 0.25],
+      collisionBoxes: ROOM_COLLISION_BOXES,
+      sofaSeat: ROOM_SOFA_SEAT,
     });
     const character = characterController.object;
     scene.add(character);
+
+    const catController = new RoomCatController({
+      initialPosition: [0.75, 0, 1.05],
+    });
+    const cat = catController.object;
+    scene.add(cat);
 
     const clock = new THREE.Clock();
     let frame = 0;
@@ -137,9 +155,16 @@ export default function RoomScene() {
       onHintPositionChange: setHintPosition,
     });
 
+    const viewportSize = {
+      width: mount.clientWidth,
+      height: Math.max(mount.clientHeight, 1),
+    };
+
     const resize = () => {
       const width = mount.clientWidth;
       const height = Math.max(mount.clientHeight, 1);
+      viewportSize.width = width;
+      viewportSize.height = height;
       cameraController.resize(width, height);
       renderer.setSize(width, height);
     };
@@ -154,6 +179,12 @@ export default function RoomScene() {
         movementEnabled: sceneModeRef.current === 'explore',
         viewForward,
         viewRight,
+      });
+      catController.update({
+        delta,
+        elapsedTime: clock.elapsedTime,
+        followTarget: character,
+        movementEnabled: sceneModeRef.current === 'explore',
       });
 
       const focusedStation =
@@ -170,11 +201,13 @@ export default function RoomScene() {
         focusTarget: focusedStation.focusTarget,
       });
       const isComputerMode = sceneModeRef.current === 'computer';
-      const computerViewport = computerStation.getScreenViewport(
-        camera,
-        mount.clientWidth,
-        mount.clientHeight,
-      );
+      const computerViewport = isComputerMode
+        ? computerStation.getScreenViewport(
+            camera,
+            viewportSize.width,
+            viewportSize.height,
+          )
+        : null;
       const computerTransform = computerViewport
         ? createScreenTransform(
             computerViewport,
@@ -189,23 +222,26 @@ export default function RoomScene() {
       );
 
       const isTvMode = sceneModeRef.current === 'tv';
-      const tvViewport = tvStation.getScreenViewport(
-        camera,
-        mount.clientWidth,
-        mount.clientHeight,
-      );
+      const tvViewport = isTvMode
+        ? tvStation.getScreenViewport(
+            camera,
+            viewportSize.width,
+            viewportSize.height,
+          )
+        : null;
       const tvTransform = tvViewport
         ? createScreenTransform(tvViewport, TV_UI_WIDTH, TV_UI_HEIGHT)
         : null;
       syncScreenLayer(tvScreenLayerRef.current, tvTransform, isTvMode);
 
-      interactionController.updateHint(mount.clientWidth, mount.clientHeight);
+      interactionController.updateHint(viewportSize.width, viewportSize.height);
 
       cameraController.updateWallVisibility(
         environment.walls,
         ROOM.width,
         ROOM_DEPTH_BOUNDS.depth,
         ROOM_DEPTH_BOUNDS.centerZ,
+        sceneModeRef.current,
       );
       environment.update(clock.elapsedTime);
 
@@ -223,6 +259,8 @@ export default function RoomScene() {
       window.removeEventListener('resize', resize);
       interactionController.dispose();
       mount.removeChild(renderer.domElement);
+      characterController.dispose();
+      catController.dispose();
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose();
@@ -254,10 +292,7 @@ export default function RoomScene() {
         isFocused={sceneMode === 'computer'}
         onClose={exitFocusMode}
       />
-      <TvScreenLayer
-        ref={tvScreenLayerRef}
-        isFocused={sceneMode === 'tv'}
-      />
+      <TvScreenLayer ref={tvScreenLayerRef} isFocused={sceneMode === 'tv'} />
       <RoomHud
         sceneMode={sceneMode}
         hoveredTarget={hoveredTarget}

@@ -87,7 +87,10 @@ export class RoomCameraController {
   rotate(step: -1 | 1) {
     this.viewDirection = ((this.viewDirection + step + VIEW_DIRECTION_COUNT) %
       VIEW_DIRECTION_COUNT) as ViewDirection;
-    this.targetOrbitAngle += step * QUARTER_TURN;
+    this.targetOrbitAngle = getNearestViewAngle(
+      this.orbitAngle,
+      this.viewDirection,
+    );
 
     return this.viewDirection;
   }
@@ -139,12 +142,11 @@ export class RoomCameraController {
     }
 
     const desiredFov = mode !== 'explore' ? COMPUTER_CAMERA_FOV : CAMERA_FOV;
-    this.camera.fov = THREE.MathUtils.lerp(
-      this.camera.fov,
-      desiredFov,
-      frame.ease,
-    );
-    this.camera.updateProjectionMatrix();
+    const nextFov = THREE.MathUtils.lerp(this.camera.fov, desiredFov, frame.ease);
+    if (Math.abs(nextFov - this.camera.fov) > 0.01) {
+      this.camera.fov = nextFov;
+      this.camera.updateProjectionMatrix();
+    }
     this.camera.position.lerp(this.desiredPosition, frame.ease);
     this.lookAtTarget.lerp(this.desiredLookAt, frame.ease);
     this.camera.lookAt(this.lookAtTarget);
@@ -160,7 +162,16 @@ export class RoomCameraController {
     roomWidth: number,
     roomDepth: number,
     roomCenterZ = 0,
+    mode: CameraMode = 'explore',
   ) {
+    if (mode === 'explore') {
+      walls.front.visible = this.viewDirection !== 0;
+      walls.right.visible = this.viewDirection !== 1;
+      walls.back.visible = this.viewDirection !== 2;
+      walls.left.visible = this.viewDirection !== 3;
+      return;
+    }
+
     const halfWidth = roomWidth / 2;
     const roomBack = roomCenterZ - roomDepth / 2;
     const roomFront = roomCenterZ + roomDepth / 2;
