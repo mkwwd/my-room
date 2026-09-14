@@ -39,19 +39,20 @@ const SCATTERED_STARS: Array<[number, number]> = [
 ];
 
 const SIDE_VISIBLE_STARS: Array<[number, number, number]> = [
-  [-1.15, 3.42, 1.08],
-  [-1.86, 2.9, 1.46],
-  [-1.04, 2.06, 1.2],
-  [-2.12, 1.18, 1.58],
-  [-1.48, 0.78, 0.94],
+  [-2.4, 2.82, -0.38],
+  [-3.1, 1.86, 0.96],
+  [-2.65, 0.54, -1.42],
+  [-2.2, 1.28, 0.18],
+  [-3.35, 0.12, 1.32],
 ];
 
+// Offset farther along the sky so these remain inside the oblique window sightline.
 const LEFT_EDGE_VISIBLE_STARS: Array<[number, number, number]> = [
-  [-0.62, 3.58, -1.08],
-  [-0.86, 3.02, -1.44],
-  [-0.52, 2.3, -1.28],
-  [-0.98, 1.54, -1.56],
-  [-0.68, 0.82, -1.02],
+  [-1.6, 2.18, -5.42],
+  [-2.3, 0.92, -5.38],
+  [-1.85, 0.28, -5.32],
+  [-1.4, 1.26, -2.58],
+  [-2.1, -0.68, -4.86],
 ];
 
 function makeStarTexture() {
@@ -98,11 +99,12 @@ function makeStarGlow(
 function makeMoon(
   position: [number, number, number],
   glowTexture: THREE.Texture,
+  manager: THREE.LoadingManager,
 ) {
   const moon = new THREE.Group();
   moon.position.set(...position);
 
-  new GLTFLoader().load(ROOM_MODELS.moon, (gltf) => {
+  new GLTFLoader(manager).load(ROOM_MODELS.moon, (gltf) => {
     const sourceBounds = new THREE.Box3().setFromObject(gltf.scene);
     const sourceSize = sourceBounds.getSize(new THREE.Vector3());
     const scale =
@@ -156,10 +158,14 @@ function makeMoon(
   return { root: moon, glowMaterial };
 }
 
-export default function createNightWindowView(width: number, height: number) {
+export default function createNightWindowView(
+  width: number,
+  height: number,
+  manager: THREE.LoadingManager,
+) {
   const root = new THREE.Group();
   const starTexture = makeStarTexture();
-  const moon = makeMoon([-3.5, height - 0.55, 1.12], starTexture);
+  const moon = makeMoon([-3.5, height - 0.55, 1.12], starTexture, manager);
   const twinklingStars: Array<{
     sprite: THREE.Sprite;
     baseSize: number;
@@ -214,13 +220,13 @@ export default function createNightWindowView(width: number, height: number) {
   );
 
   SIDE_VISIBLE_STARS.forEach(([x, y, z], index) => {
-    const baseSize = index % 2 === 0 ? 0.18 : 0.14;
+    const baseSize = index % 2 === 0 ? 0.12 : 0.08;
     const star = makeStarGlow(starTexture, baseSize, [x, y, z]);
     twinklingStars.push({
       sprite: star,
       baseSize,
-      minOpacity: 0.52,
-      opacityRange: 0.44,
+      minOpacity: 0.3,
+      opacityRange: 0.42,
       phase: 9.2 + index * 1.41,
       speed: 0.95 + index * 0.22,
     });
@@ -228,23 +234,18 @@ export default function createNightWindowView(width: number, height: number) {
   });
 
   LEFT_EDGE_VISIBLE_STARS.forEach(([x, y, z], index) => {
-    const baseSize = index % 2 === 0 ? 0.16 : 0.12;
+    const baseSize = index % 2 === 0 ? 0.12 : 0.09;
     const star = makeStarGlow(starTexture, baseSize, [x, y, z]);
     twinklingStars.push({
       sprite: star,
       baseSize,
-      minOpacity: 0.46,
-      opacityRange: 0.42,
+      minOpacity: 0.32,
+      opacityRange: 0.4,
       phase: 14.7 + index * 1.36,
       speed: 1.02 + index * 0.19,
     });
     root.add(star);
   });
-
-  const moonlight = new THREE.RectAreaLight('#8297c2', 0.24, width, height);
-  moonlight.rotation.y = -Math.PI / 2;
-  moonlight.position.set(0.4, height / 2, 0);
-  root.add(moonlight);
 
   return {
     root,

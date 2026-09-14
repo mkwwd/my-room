@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
+import createDayWindowView from './DayWindowView';
+import createNightWindowView from './NightWindowView';
 import {
   MODEL_TARGET_WIDTH,
   ROOM,
@@ -9,8 +11,7 @@ import {
   ROOM_WINDOW,
   WALL_THICKNESS,
 } from './roomConfig';
-import createDayWindowView from './DayWindowView';
-import createNightWindowView from './NightWindowView';
+import { createHoverFrame } from './RoomHoverEffect';
 import { prepareModel } from './RoomModelUtils';
 
 function softenWindowGlass(object: THREE.Object3D) {
@@ -60,26 +61,41 @@ export default class RoomWindow {
   readonly hintAnchor = new THREE.Vector3();
 
   private readonly root = new THREE.Group();
-  private readonly loader = new GLTFLoader();
+  private readonly hoverFrame = createHoverFrame(
+    ROOM_WINDOW.width,
+    ROOM_WINDOW.height,
+  );
+  private readonly loader: GLTFLoader;
   private readonly pickTargets: THREE.Object3D[] = [];
-  private readonly dayView = createDayWindowView(
-    ROOM_WINDOW.width,
-    ROOM_WINDOW.height,
-  );
-  private readonly nightView = createNightWindowView(
-    ROOM_WINDOW.width,
-    ROOM_WINDOW.height,
-  );
+  private readonly dayView: ReturnType<typeof createDayWindowView>;
+  private readonly nightView: ReturnType<typeof createNightWindowView>;
   private isDisposed = false;
   private lastTimeCheck = Number.NEGATIVE_INFINITY;
 
-  constructor(private readonly leftWall: THREE.Group) {
+  constructor(
+    private readonly leftWall: THREE.Group,
+    manager: THREE.LoadingManager,
+  ) {
+    this.loader = new GLTFLoader(manager);
+    this.dayView = createDayWindowView(
+      ROOM_WINDOW.width,
+      ROOM_WINDOW.height,
+      manager,
+    );
+    this.nightView = createNightWindowView(
+      ROOM_WINDOW.width,
+      ROOM_WINDOW.height,
+      manager,
+    );
     this.root.position.set(
       WALL_THICKNESS / 2 + 0.05,
       ROOM_WINDOW.bottomHeight - ROOM.wallHeight / 2,
       ROOM_WINDOW.centerZ - ROOM_DEPTH_BOUNDS.sideWallCenterZ,
     );
     leftWall.add(this.root);
+    this.hoverFrame.rotation.y = Math.PI / 2;
+    this.hoverFrame.position.set(0.22, ROOM_WINDOW.height / 2, 0);
+    this.root.add(this.hoverFrame);
 
     this.root.add(this.dayView.root, this.nightView.root);
     this.updateAppearance();
@@ -98,7 +114,23 @@ export default class RoomWindow {
     return raycaster.intersectObjects(this.pickTargets, true).length > 0;
   }
 
+  get isDaytime() {
+    return this.dayView.root.visible;
+  }
+
+  updateHover(active: boolean, delta: number) {
+    this.hoverFrame.material.opacity = THREE.MathUtils.damp(
+      this.hoverFrame.material.opacity,
+      active && this.leftWall.visible ? 0.95 : 0,
+      14,
+      delta,
+    );
+    this.hoverFrame.visible = this.hoverFrame.material.opacity > 0.001;
+  }
+
   dispose() {
+    this.hoverFrame.geometry.dispose();
+    this.hoverFrame.material.dispose();
     this.isDisposed = true;
     this.pickTargets.length = 0;
     this.dayView.dispose();
@@ -125,6 +157,13 @@ export default class RoomWindow {
       gltf.scene.scale.y *=
         ROOM_WINDOW.height / Math.max(preparedHeight, 0.001);
       gltf.scene.updateMatrixWorld(true);
+      const frameBounds = new THREE.Box3().setFromObject(gltf.scene);
+      const frameCenter = frameBounds.getCenter(new THREE.Vector3());
+      this.hoverFrame.position.set(
+        frameBounds.max.x + 0.006,
+        frameCenter.y,
+        frameCenter.z,
+      );
 
       softenWindowGlass(gltf.scene);
       this.root.add(gltf.scene);
@@ -133,13 +172,11 @@ export default class RoomWindow {
       this.leftWall.updateMatrixWorld(true);
       this.hintAnchor.copy(
         this.root.localToWorld(
-          new THREE.Vector3(0.2, ROOM_WINDOW.height + 0.35, 0),
+          new THREE.Vector3(0.2, ROOM_WINDOW.height / 2, 0),
         ),
       );
       this.focusTarget.copy(
-        this.root.localToWorld(
-          new THREE.Vector3(0, ROOM_WINDOW.height / 2, 0),
-        ),
+        this.root.localToWorld(new THREE.Vector3(0, ROOM_WINDOW.height / 2, 0)),
       );
       this.focusPosition.copy(
         this.root.localToWorld(

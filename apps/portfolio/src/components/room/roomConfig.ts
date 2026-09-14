@@ -1,6 +1,6 @@
 export type FocusMode = 'computer' | 'tv' | 'window';
 export type SceneMode = 'explore' | FocusMode;
-export type RoomHoverTarget = FocusMode | 'sofa';
+export type RoomHoverTarget = FocusMode | 'sofa' | 'lightSwitch';
 
 export type RoomCollisionBox = {
   centerX: number;
@@ -40,7 +40,7 @@ export const ROOM_WINDOW = {
   bottomHeight: 2.05,
   centerZ: -3.65,
   dayStartsAt: 6,
-  nightStartsAt: 9,
+  nightStartsAt: 18,
   focusDistance: 8.4,
 } as const;
 
@@ -58,12 +58,9 @@ export const ROOM_MODELS = {
   cloud1: '/models/cloud1.glb',
   cloud2: '/models/cloud2.glb',
   cloud3: '/models/cloud3.glb',
-  clock: '/models/wall_clock.glb',
   cabinet: '/models/modern_desk.glb',
   bikini1: '/models/bikini1.glb',
-  bikini2: '/models/bikiini2.glb',
   toystory: '/models/toystory.glb',
-  clownfish: '/models/clownfish.glb',
   cat: '/models/cat.glb',
   character: '/models/doll.glb?v=decimated-20260723',
   tulip: '/models/tulip.glb',
@@ -79,9 +76,7 @@ export const MODEL_TARGET_WIDTH = {
   tv: 5.4,
   vase: 1,
   window: 3.2,
-  clock: 1.65,
   toystory: 3,
-  clownfish: 0.28,
   cat: 1.12,
   tulip: 0.62,
 } as const;
@@ -150,5 +145,5 @@ export const ROOM_SOFA_SEAT = {
 export const ROOM_SOFA_INTERACTION = {
   center: [0, 1.28, -3],
   halfSize: [2.1, 1.25, 1.35],
-  hintAnchor: [0, 2.45, -3.56],
+  hintAnchor: [0, 1.7, -2.8],
 } as const;

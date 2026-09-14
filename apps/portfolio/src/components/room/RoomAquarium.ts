@@ -36,6 +36,33 @@ type AquariumLighting = {
   glowMaterial: THREE.MeshBasicMaterial;
 };
 
+function prepareAquariumMaterials(
+  object: THREE.Object3D,
+  {
+    minRoughness,
+    maxMetalness,
+  }: { minRoughness: number; maxMetalness: number },
+) {
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+
+    child.castShadow = false;
+    child.receiveShadow = true;
+
+    const cloneMaterial = (material: THREE.Material) => {
+      const clone = material.clone();
+      if (clone instanceof THREE.MeshStandardMaterial) {
+        clone.roughness = Math.max(clone.roughness, minRoughness);
+        clone.metalness = Math.min(clone.metalness, maxMetalness);
+      }
+      return clone;
+    };
+    child.material = Array.isArray(child.material)
+      ? child.material.map(cloneMaterial)
+      : cloneMaterial(child.material);
+  });
+}
+
 function fitModelToBox(object: THREE.Object3D, targetSize: THREE.Vector3) {
   object.updateMatrixWorld(true);
 
@@ -108,12 +135,16 @@ function makeAquariumGlowTexture() {
 
 export default class RoomAquarium {
   private readonly root = new THREE.Group();
-  private readonly loader = new GLTFLoader();
+  private readonly loader: GLTFLoader;
   private readonly aquariumGlowTexture = makeAquariumGlowTexture();
   private aquariumLighting: AquariumLighting | null = null;
   private isDisposed = false;
 
-  constructor(private readonly parent: THREE.Object3D) {
+  constructor(
+    private readonly parent: THREE.Object3D,
+    manager: THREE.LoadingManager,
+  ) {
+    this.loader = new GLTFLoader(manager);
     parent.add(this.root);
     this.addAquarium();
   }
@@ -182,32 +213,9 @@ export default class RoomAquarium {
         ),
       );
       model.position.set(AQUARIUM.tankX, AQUARIUM.tankY, AQUARIUM.tankZ);
-      model.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-
-        child.castShadow = false;
-        child.receiveShadow = true;
-
-        const materials = Array.isArray(child.material)
-          ? child.material
-          : [child.material];
-        const aquariumMaterials = materials.map((material) => {
-          const aquariumMaterial = material.clone();
-          if (aquariumMaterial instanceof THREE.MeshStandardMaterial) {
-            aquariumMaterial.roughness = Math.max(
-              aquariumMaterial.roughness,
-              0.68,
-            );
-            aquariumMaterial.metalness = Math.min(
-              aquariumMaterial.metalness,
-              0.04,
-            );
-          }
-          return aquariumMaterial;
-        });
-        child.material = Array.isArray(child.material)
-          ? aquariumMaterials
-          : aquariumMaterials[0];
+      prepareAquariumMaterials(model, {
+        minRoughness: 0.68,
+        maxMetalness: 0.04,
       });
 
       this.root.add(model);
@@ -234,32 +242,9 @@ export default class RoomAquarium {
         ),
       );
 
-      cabinet.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-
-        child.castShadow = false;
-        child.receiveShadow = true;
-
-        const materials = Array.isArray(child.material)
-          ? child.material
-          : [child.material];
-        const cabinetMaterials = materials.map((material) => {
-          const cabinetMaterial = material.clone();
-          if (cabinetMaterial instanceof THREE.MeshStandardMaterial) {
-            cabinetMaterial.roughness = Math.max(
-              cabinetMaterial.roughness,
-              0.78,
-            );
-            cabinetMaterial.metalness = Math.min(
-              cabinetMaterial.metalness,
-              0.08,
-            );
-          }
-          return cabinetMaterial;
-        });
-        child.material = Array.isArray(child.material)
-          ? cabinetMaterials
-          : cabinetMaterials[0];
+      prepareAquariumMaterials(cabinet, {
+        minRoughness: 0.78,
+        maxMetalness: 0.08,
       });
 
       this.root.add(cabinet);
@@ -278,26 +263,9 @@ export default class RoomAquarium {
         AQUARIUM_TULIP.y,
         AQUARIUM.tankOffsetZ + AQUARIUM_TULIP.zOffset,
       );
-      tulip.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-
-        child.castShadow = false;
-        child.receiveShadow = true;
-
-        const materials = Array.isArray(child.material)
-          ? child.material
-          : [child.material];
-        const tulipMaterials = materials.map((material) => {
-          const tulipMaterial = material.clone();
-          if (tulipMaterial instanceof THREE.MeshStandardMaterial) {
-            tulipMaterial.roughness = Math.max(tulipMaterial.roughness, 0.62);
-            tulipMaterial.metalness = Math.min(tulipMaterial.metalness, 0.03);
-          }
-          return tulipMaterial;
-        });
-        child.material = Array.isArray(child.material)
-          ? tulipMaterials
-          : tulipMaterials[0];
+      prepareAquariumMaterials(tulip, {
+        minRoughness: 0.62,
+        maxMetalness: 0.03,
       });
 
       this.root.add(tulip);

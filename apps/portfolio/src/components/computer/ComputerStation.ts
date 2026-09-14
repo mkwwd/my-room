@@ -1,21 +1,22 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
+import ProjectedScreen from '../room/ProjectedScreen';
 import {
   COMPUTER_BASE_HEIGHT,
   COMPUTER_DESK_HEIGHT_SCALE,
   COMPUTER_DESK_ROTATION_Y,
   COMPUTER_SCREEN,
   COMPUTER_STATION_WALL_INSET,
-  COMPUTER_SURFACE_HEIGHT,
   DESK_ROTATION_Y,
   DESK_SURFACE_HEIGHT,
   MODEL_TARGET_WIDTH,
   ROOM,
   ROOM_MODELS,
 } from '../room/roomConfig';
-import ProjectedScreen from '../room/ProjectedScreen';
 import { prepareModel } from '../room/RoomModelUtils';
+import type { ProjectedScreenViewport } from '../room/screenTransform';
+
 function softenComputerWarmHighlights(object: THREE.Object3D) {
   object.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
@@ -48,8 +49,6 @@ function softenComputerWarmHighlights(object: THREE.Object3D) {
   });
 }
 
-import type { ProjectedScreenViewport } from '../room/screenTransform';
-
 const COMPUTER_MODEL_HEIGHT_SCALE = 1;
 const COMPUTER_MODEL_DEPTH_SCALE = 0.015;
 
@@ -58,14 +57,18 @@ export default class ComputerStation {
   readonly focusTarget = new THREE.Vector3();
   readonly hintAnchor = new THREE.Vector3();
 
-  private readonly loader = new GLTFLoader();
+  private readonly loader: GLTFLoader;
   private readonly anchor = new THREE.Group();
   private readonly pickTargets: THREE.Object3D[] = [];
   private readonly projectedScreen = new ProjectedScreen(COMPUTER_SCREEN);
   private isScreenReady = false;
   private isDisposed = false;
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(
+    private readonly scene: THREE.Scene,
+    manager: THREE.LoadingManager,
+  ) {
+    this.loader = new GLTFLoader(manager);
     const leftWallInnerX = -ROOM.width / 2 + COMPUTER_STATION_WALL_INSET;
     this.anchor.position.set(leftWallInnerX, 0, 2);
     this.anchor.rotation.y = Math.PI / 2;
@@ -76,6 +79,14 @@ export default class ComputerStation {
 
   isPointerOver(raycaster: THREE.Raycaster) {
     return raycaster.intersectObjects(this.pickTargets, true).length > 0;
+  }
+
+  updateHover(active: boolean, delta: number) {
+    this.projectedScreen.updateHighlight(
+      this.anchor,
+      active && this.isScreenReady,
+      delta,
+    );
   }
 
   getScreenViewport(
@@ -93,6 +104,7 @@ export default class ComputerStation {
   }
 
   dispose() {
+    this.projectedScreen.dispose();
     this.isDisposed = true;
     this.pickTargets.length = 0;
     this.isScreenReady = false;
@@ -177,7 +189,11 @@ export default class ComputerStation {
     this.anchor.updateMatrixWorld(true);
     this.hintAnchor.copy(
       this.anchor.localToWorld(
-        new THREE.Vector3(-0.08, COMPUTER_SURFACE_HEIGHT + 1.42, -0.02),
+        new THREE.Vector3(
+          COMPUTER_SCREEN.centerX,
+          COMPUTER_SCREEN.centerY,
+          COMPUTER_SCREEN.centerZ,
+        ),
       ),
     );
   }

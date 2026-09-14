@@ -4,22 +4,51 @@ import * as THREE from 'three';
 
 import type { SceneMode } from './roomConfig';
 
-const CAMERA_FOV = 42;
+const CAMERA_FOV = 32;
 const COMPUTER_CAMERA_FOV = 30;
-const CAMERA_DISTANCE = 10;
-const CAMERA_HEIGHT = 8.1;
+const CAMERA_DISTANCE = 15;
+const CAMERA_HEIGHT = 10.5;
 const CAMERA_SIDE_FOLLOW = 0.38;
 const CAMERA_LOOK_DISTANCE = 0.5;
 const CAMERA_LOOK_HEIGHT = 3;
+const MIN_EXPLORATION_ASPECT = 1.4;
 const VIEW_DIRECTION_COUNT = 4;
 const QUARTER_TURN = Math.PI / 2;
 const FULL_TURN = Math.PI * 2;
+const CAMERA_RESPONSE = 8;
+
+type DampedValue = { value: number; velocity: number };
+
+// The exact critically damped step preserves velocity when a target changes.
+function dampValue(state: DampedValue, target: number, delta: number) {
+  const decay = Math.exp(-CAMERA_RESPONSE * delta);
+  const offset = state.value - target;
+  const step = (state.velocity + CAMERA_RESPONSE * offset) * delta;
+  state.value = target + (offset + step) * decay;
+  state.velocity = (state.velocity - CAMERA_RESPONSE * step) * decay;
+  return state.value;
+}
+
+function dampPosition(
+  current: THREE.Vector3,
+  target: THREE.Vector3,
+  velocity: THREE.Vector3,
+  delta: number,
+) {
+  const decay = Math.exp(-CAMERA_RESPONSE * delta);
+  for (const axis of ['x', 'y', 'z'] as const) {
+    const offset = current[axis] - target[axis];
+    const step = (velocity[axis] + CAMERA_RESPONSE * offset) * delta;
+    current[axis] = target[axis] + (offset + step) * decay;
+    velocity[axis] = (velocity[axis] - CAMERA_RESPONSE * step) * decay;
+  }
+}
 
 export type ViewDirection = 0 | 1 | 2 | 3;
 export type CameraMode = SceneMode;
 
 type CameraFrame = {
-  ease: number;
+  delta: number;
   forward: THREE.Vector3;
   right: THREE.Vector3;
 };
@@ -57,9 +86,13 @@ function getNearestViewAngle(
 export class RoomCameraController {
   readonly camera: THREE.PerspectiveCamera;
 
-  private orbitAngle = 0;
+  private readonly orbit: DampedValue = { value: 0, velocity: 0 };
+  private readonly lens: DampedValue = { value: CAMERA_FOV, velocity: 0 };
+  private readonly positionVelocity = new THREE.Vector3();
+  private readonly lookAtVelocity = new THREE.Vector3();
   private targetOrbitAngle = 0;
   private viewDirection: ViewDirection = 0;
+  private explorationScale = 1;
   private readonly lookAtTarget = new THREE.Vector3(
     0,
     CAMERA_LOOK_HEIGHT,
@@ -72,43 +105,57 @@ export class RoomCameraController {
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 100);
-    this.camera.position.set(0, CAMERA_HEIGHT, CAMERA_DISTANCE);
+    this.explorationScale = Math.max(
+      1,
+      MIN_EXPLORATION_ASPECT / Math.max(aspect, 0.1),
+    );
+    this.camera.position.set(
+      0,
+      CAMERA_LOOK_HEIGHT +
+        (CAMERA_HEIGHT - CAMERA_LOOK_HEIGHT) * this.explorationScale,
+      (CAMERA_DISTANCE + CAMERA_LOOK_DISTANCE) * this.explorationScale -
+        CAMERA_LOOK_DISTANCE,
+    );
     this.camera.lookAt(0, CAMERA_LOOK_HEIGHT, -CAMERA_LOOK_DISTANCE);
   }
 
   setView(nextViewDirection: ViewDirection) {
     this.viewDirection = nextViewDirection;
     this.targetOrbitAngle = getNearestViewAngle(
-      this.targetOrbitAngle,
+      this.orbit.value,
       nextViewDirection,
     );
+  }
+
+  setPose(position: THREE.Vector3, target: THREE.Vector3, fov: number) {
+    this.camera.position.copy(position);
+    this.lookAtTarget.copy(target);
+    this.positionVelocity.set(0, 0, 0);
+    this.lookAtVelocity.set(0, 0, 0);
+    this.lens.value = fov;
+    this.lens.velocity = 0;
+    this.camera.fov = fov;
+    this.camera.updateProjectionMatrix();
+    this.camera.lookAt(target);
   }
 
   rotate(step: -1 | 1) {
     this.viewDirection = ((this.viewDirection + step + VIEW_DIRECTION_COUNT) %
       VIEW_DIRECTION_COUNT) as ViewDirection;
-    this.targetOrbitAngle = getNearestViewAngle(
-      this.orbitAngle,
-      this.viewDirection,
-    );
+    this.targetOrbitAngle += step * QUARTER_TURN;
 
     return this.viewDirection;
   }
 
   beginFrame(delta: number): CameraFrame {
-    const ease = 1 - Math.pow(0.02, delta);
-    this.orbitAngle = THREE.MathUtils.lerp(
-      this.orbitAngle,
-      this.targetOrbitAngle,
-      ease,
-    );
+    const orbitAngle = dampValue(this.orbit, this.targetOrbitAngle, delta);
 
-    const sin = Math.sin(this.orbitAngle);
-    const cos = Math.cos(this.orbitAngle);
+    const sin = Math.sin(orbitAngle);
+    const cos = Math.cos(orbitAngle);
     this.forward.set(-sin, 0, -cos);
     this.right.set(cos, 0, -sin);
 
-    return { ease, forward: this.forward, right: this.right };
+    return { delta, forward: this.forward, right: this.right };
   }
 
   follow({
@@ -130,9 +177,14 @@ export class RoomCameraController {
     } else {
       this.desiredPosition
         .copy(frame.forward)
-        .multiplyScalar(-CAMERA_DISTANCE)
+        .multiplyScalar(
+          CAMERA_LOOK_DISTANCE -
+            (CAMERA_DISTANCE + CAMERA_LOOK_DISTANCE) * this.explorationScale,
+        )
         .addScaledVector(frame.right, cameraSideFollow);
-      this.desiredPosition.y = CAMERA_HEIGHT;
+      this.desiredPosition.y =
+        CAMERA_LOOK_HEIGHT +
+        (CAMERA_HEIGHT - CAMERA_LOOK_HEIGHT) * this.explorationScale;
 
       this.desiredLookAt
         .copy(frame.forward)
@@ -142,18 +194,32 @@ export class RoomCameraController {
     }
 
     const desiredFov = mode !== 'explore' ? COMPUTER_CAMERA_FOV : CAMERA_FOV;
-    const nextFov = THREE.MathUtils.lerp(this.camera.fov, desiredFov, frame.ease);
-    if (Math.abs(nextFov - this.camera.fov) > 0.01) {
+    const nextFov = dampValue(this.lens, desiredFov, frame.delta);
+    if (Math.abs(nextFov - this.camera.fov) > 0.0001) {
       this.camera.fov = nextFov;
       this.camera.updateProjectionMatrix();
     }
-    this.camera.position.lerp(this.desiredPosition, frame.ease);
-    this.lookAtTarget.lerp(this.desiredLookAt, frame.ease);
+    dampPosition(
+      this.camera.position,
+      this.desiredPosition,
+      this.positionVelocity,
+      frame.delta,
+    );
+    dampPosition(
+      this.lookAtTarget,
+      this.desiredLookAt,
+      this.lookAtVelocity,
+      frame.delta,
+    );
     this.camera.lookAt(this.lookAtTarget);
   }
 
   resize(width: number, height: number) {
     this.camera.aspect = width / Math.max(height, 1);
+    this.explorationScale = Math.max(
+      1,
+      MIN_EXPLORATION_ASPECT / Math.max(this.camera.aspect, 0.1),
+    );
     this.camera.updateProjectionMatrix();
   }
 
@@ -162,25 +228,16 @@ export class RoomCameraController {
     roomWidth: number,
     roomDepth: number,
     roomCenterZ = 0,
-    mode: CameraMode = 'explore',
   ) {
-    if (mode === 'explore') {
-      walls.front.visible = this.viewDirection !== 0;
-      walls.right.visible = this.viewDirection !== 1;
-      walls.back.visible = this.viewDirection !== 2;
-      walls.left.visible = this.viewDirection !== 3;
-      return;
-    }
-
     const halfWidth = roomWidth / 2;
     const roomBack = roomCenterZ - roomDepth / 2;
     const roomFront = roomCenterZ + roomDepth / 2;
-    const margin = 0.35;
+    const margin = 0.15;
 
-    walls.front.visible = this.camera.position.z < roomFront + margin;
-    walls.back.visible = this.camera.position.z > roomBack - margin;
-    walls.right.visible = this.camera.position.x < halfWidth + margin;
-    walls.left.visible = this.camera.position.x > -halfWidth - margin;
+    walls.front.visible = this.camera.position.z < roomFront - margin;
+    walls.back.visible = this.camera.position.z > roomBack + margin;
+    walls.right.visible = this.camera.position.x < halfWidth - margin;
+    walls.left.visible = this.camera.position.x > -halfWidth + margin;
   }
 }
 

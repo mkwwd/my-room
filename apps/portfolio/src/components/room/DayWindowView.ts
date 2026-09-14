@@ -53,8 +53,8 @@ function makeDaySkyTexture() {
   return texture;
 }
 
-function addMovingClouds(root: THREE.Group) {
-  const loader = new GLTFLoader();
+function addMovingClouds(root: THREE.Group, manager: THREE.LoadingManager) {
+  const loader = new GLTFLoader(manager);
   const movingClouds: MovingCloud[] = [];
   let disposed = false;
 
@@ -225,25 +225,22 @@ function makeSun(
   outerGlow.position.x = -0.08;
   sun.add(outerGlow);
 
-  const sunlight = new THREE.PointLight('#ffe0a3', 0.75, 7, 2);
-  sunlight.position.x = 0.25;
-  sun.add(sunlight);
-
   return {
     root: sun,
     glowMaterials: [innerGlowMaterial, outerGlowMaterial],
   };
 }
 
-export default function createDayWindowView(width: number, height: number) {
+export default function createDayWindowView(
+  width: number,
+  height: number,
+  manager: THREE.LoadingManager,
+) {
   const root = new THREE.Group();
   const sunGlowTexture = makeSunGlowTexture();
   const skyTexture = makeDaySkyTexture();
-  const clouds = addMovingClouds(root);
-  const sun = makeSun(
-    [-3.5, height - 0.85, -0.92],
-    sunGlowTexture,
-  );
+  const clouds = addMovingClouds(root, manager);
+  const sun = makeSun([-3.5, height - 0.85, -0.92], sunGlowTexture);
 
   const sky = new THREE.Mesh(
     new THREE.PlaneGeometry(width * 6, height * 4),
@@ -262,11 +259,6 @@ export default function createDayWindowView(width: number, height: number) {
   root.add(sky);
 
   root.add(sun.root);
-
-  const daylight = new THREE.RectAreaLight('#e9fbff', 1.4, width, height);
-  daylight.rotation.y = -Math.PI / 2;
-  daylight.position.set(0.4, height / 2, 0);
-  root.add(daylight);
 
   return {
     root,

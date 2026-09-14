@@ -20,6 +20,7 @@ const SIT_FADE_DURATION = 0.18;
 const SIT_ANIMATION_FALLBACK_INDEX = 1;
 
 type RoomCharacterOptions = {
+  manager: THREE.LoadingManager;
   limitX: number;
   limitZ: number;
   limitBackZ?: number;
@@ -145,8 +146,8 @@ function dampAngle(
 export default class RoomCharacterController {
   readonly object = new THREE.Group();
 
-  private readonly dracoLoader = new DRACOLoader();
-  private readonly loader = new GLTFLoader();
+  private readonly dracoLoader: DRACOLoader;
+  private readonly loader: GLTFLoader;
   private readonly pressedKeys = new Set<string>();
   private readonly targetPosition: THREE.Vector3;
   private readonly direction = new THREE.Vector3();
@@ -164,6 +165,8 @@ export default class RoomCharacterController {
   private isDisposed = false;
 
   constructor(private readonly options: RoomCharacterOptions) {
+    this.dracoLoader = new DRACOLoader(options.manager);
+    this.loader = new GLTFLoader(options.manager);
     this.dracoLoader.setDecoderPath('/draco/');
     this.dracoLoader.setDecoderConfig({ type: 'wasm' });
     this.dracoLoader.preload();

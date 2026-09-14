@@ -19,6 +19,7 @@ const CAT_WALK_FADE_DURATION = 0.22;
 const CAT_WALK_TIME_SCALE = 0.78;
 
 type RoomCatOptions = {
+  manager: THREE.LoadingManager;
   initialPosition: [number, number, number];
 };
 
@@ -69,8 +70,8 @@ function findCatWalkClip(animations: THREE.AnimationClip[]) {
 export default class RoomCatController {
   readonly object = new THREE.Group();
 
-  private readonly dracoLoader = new DRACOLoader();
-  private readonly loader = new GLTFLoader();
+  private readonly dracoLoader: DRACOLoader;
+  private readonly loader: GLTFLoader;
   private readonly desiredPosition = new THREE.Vector3();
   private readonly targetForward = new THREE.Vector3();
   private readonly targetRight = new THREE.Vector3();
@@ -83,6 +84,8 @@ export default class RoomCatController {
   private isDisposed = false;
 
   constructor(options: RoomCatOptions) {
+    this.dracoLoader = new DRACOLoader(options.manager);
+    this.loader = new GLTFLoader(options.manager);
     this.dracoLoader.setDecoderPath('/draco/');
     this.dracoLoader.setDecoderConfig({ type: 'wasm' });
     this.dracoLoader.preload();
@@ -104,6 +107,17 @@ export default class RoomCatController {
       this.moveTowardDesiredPosition(delta);
     }
 
+    this.animateMovement(delta, elapsedTime);
+  }
+
+  walkTo(target: THREE.Vector3, delta: number, elapsedTime: number) {
+    this.previousPosition.copy(this.object.position);
+    this.desiredPosition.copy(target);
+    this.moveTowardDesiredPosition(delta);
+    this.animateMovement(delta, elapsedTime);
+  }
+
+  private animateMovement(delta: number, elapsedTime: number) {
     this.movement.set(
       this.object.position.x - this.previousPosition.x,
       0,
