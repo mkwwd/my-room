@@ -1,21 +1,37 @@
 import RoomCameraControls, { type ViewDirection } from './RoomCamera';
-import type { FocusMode, SceneMode } from './roomConfig';
-import type { ScreenPosition } from './RoomInteractionController';
+import type { RoomHoverTarget, SceneMode } from './roomConfig';
+import styles from './RoomHud.module.css';
+import {
+  ROOM_MARKER_TARGETS,
+  type HintPositions,
+} from './RoomInteractionController';
 
 type RoomHudProps = {
+  lightsOn: boolean;
   sceneMode: SceneMode;
-  hoveredTarget: FocusMode | null;
-  hintPosition: ScreenPosition;
+  hintPositions: HintPositions;
+  onHoverTarget: (target: RoomHoverTarget | null) => void;
+  onActivateTarget: (target: RoomHoverTarget) => void;
   viewDirection: ViewDirection;
   onExitFocus: () => void;
   onRotateView: (step: -1 | 1) => void;
   onResetView: () => void;
 };
 
+const TARGET_ACTIONS = {
+  computer: 'Open computer',
+  tv: 'Watch TV',
+  window: 'Look through window',
+  sofa: 'Sit or stand up',
+  lightSwitch: 'Room lights',
+};
+
 export default function RoomHud({
+  lightsOn,
   sceneMode,
-  hoveredTarget,
-  hintPosition,
+  hintPositions,
+  onHoverTarget,
+  onActivateTarget,
   viewDirection,
   onExitFocus,
   onRotateView,
@@ -31,26 +47,33 @@ export default function RoomHud({
             My Room
           </p>
           <span className="max-w-60 text-sm leading-[1.45] font-extrabold opacity-[0.88]">
-            WASD / Arrow keys or click the floor to move
+            WASD / Arrow keys or click the floor to move / Press E near sofa to
+            sit
           </span>
         </section>
       ) : null}
 
-      {hoveredTarget && sceneMode === 'explore' && hintPosition.visible ? (
-        <div
-          className="pointer-events-none absolute z-[4] -translate-x-1/2 -translate-y-full rounded-full border-2 border-[#4b382c]/20 bg-[#fff6df]/95 px-4 py-2 text-sm font-black text-[#4b382c] shadow-[0_12px_30px_rgba(67,42,28,0.2)]"
-          style={{
-            left: `${hintPosition.x}px`,
-            top: `${hintPosition.y}px`,
-          }}>
-          <span>
-            {hoveredTarget === 'computer'
-              ? 'Click computer screen'
-              : 'Click TV screen'}
-          </span>
-          <span className="absolute top-full left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-[5px] rotate-45 border-r-2 border-b-2 border-[#4b382c]/20 bg-[#fff6df]/95" />
-        </div>
-      ) : null}
+      {sceneMode === 'explore' &&
+        ROOM_MARKER_TARGETS.map((target) => {
+          const position = hintPositions[target];
+          if (!position?.visible) return null;
+          return (
+            <button
+              key={target}
+              type="button"
+              aria-label={TARGET_ACTIONS[target]}
+              aria-pressed={target === 'lightSwitch' ? lightsOn : undefined}
+              data-room-target={target}
+              className={styles.keyboardTarget}
+              style={{ left: position.x, top: position.y }}
+              onFocus={() => onHoverTarget(target)}
+              onPointerEnter={() => onHoverTarget(target)}
+              onPointerLeave={() => onHoverTarget(null)}
+              onBlur={() => onHoverTarget(null)}
+              onClick={() => onActivateTarget(target)}
+            />
+          );
+        })}
 
       {sceneMode !== 'explore' ? (
         <div className="pointer-events-none absolute inset-0 z-[5]">

@@ -3,15 +3,12 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
-import importPlugin from "eslint-plugin-import";
 import unusedImports from "eslint-plugin-unused-imports";
 import prettier from "eslint-plugin-prettier";
 import prettierConfig from "eslint-config-prettier";
-import reactHooks from "eslint-plugin-react-hooks";
 
 const eslintConfig = defineConfig([
   js.configs.recommended,
-  ...tseslint.configs.recommended,
 
   ...nextVitals,
   ...nextTs,
@@ -30,9 +27,6 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{ts,tsx}"],
     plugins: {
-      "@typescript-eslint": tseslint.plugin,
-      import: importPlugin,
-      "react-hooks": reactHooks,
       "unused-imports": unusedImports,
       prettier,
     },

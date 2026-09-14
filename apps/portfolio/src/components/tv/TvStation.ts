@@ -18,14 +18,18 @@ export default class TvStation {
   readonly focusTarget = new THREE.Vector3();
   readonly hintAnchor = new THREE.Vector3();
 
-  private readonly loader = new GLTFLoader();
+  private readonly loader: GLTFLoader;
   private readonly anchor = new THREE.Group();
   private readonly pickTargets: THREE.Object3D[] = [];
   private readonly projectedScreen = new ProjectedScreen(TV_SCREEN);
   private isScreenReady = false;
   private isDisposed = false;
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(
+    private readonly scene: THREE.Scene,
+    manager: THREE.LoadingManager,
+  ) {
+    this.loader = new GLTFLoader(manager);
     const backWallInnerZ = -ROOM.depth / 2 + 0.08;
     this.anchor.position.set(0, TV_BOTTOM_HEIGHT, backWallInnerZ);
     scene.add(this.anchor);
@@ -34,6 +38,14 @@ export default class TvStation {
 
   isPointerOver(raycaster: THREE.Raycaster) {
     return raycaster.intersectObjects(this.pickTargets, true).length > 0;
+  }
+
+  updateHover(active: boolean, delta: number) {
+    this.projectedScreen.updateHighlight(
+      this.anchor,
+      active && this.isScreenReady,
+      delta,
+    );
   }
 
   getScreenViewport(
@@ -51,6 +63,7 @@ export default class TvStation {
   }
 
   dispose() {
+    this.projectedScreen.dispose();
     this.isDisposed = true;
     this.pickTargets.length = 0;
     this.isScreenReady = false;
@@ -71,7 +84,7 @@ export default class TvStation {
         this.anchor.localToWorld(
           new THREE.Vector3(
             TV_SCREEN.centerX,
-            TV_SCREEN.centerY + TV_SCREEN.height / 2 + 0.5,
+            TV_SCREEN.centerY,
             TV_SCREEN.centerZ,
           ),
         ),

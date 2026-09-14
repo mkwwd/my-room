@@ -1,0 +1,21 @@
+/* Pointer input goes to the model; keyboard focus uses the same highlight. */
+.keyboardTarget {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.keyboardTarget:focus-visible {
+  outline: none;
+}
+
+.keyboardTarget[data-room-target='lightSwitch'] {
+  z-index: 4;
+  pointer-events: auto;
+  cursor: pointer;
+}

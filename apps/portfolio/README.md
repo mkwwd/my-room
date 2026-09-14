@@ -16,6 +16,20 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Google Calendar
+
+The computer calendar reads a public Google Calendar through the server API
+route. Add these values to `apps/portfolio/.env.local` when the credentials are
+ready:
+
+```bash
+GOOGLE_CALENDAR_API_KEY=your_google_calendar_api_key
+GOOGLE_CALENDAR_ID=your_calendar_id
+```
+
+The selected calendar must be public when it is accessed with an API key.
+Private calendars require OAuth instead.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

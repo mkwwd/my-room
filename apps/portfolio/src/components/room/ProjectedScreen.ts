@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 
+import { createHoverFrame } from './RoomHoverEffect';
 import type { ProjectedScreenViewport } from './screenTransform';
 
 type ScreenPlane = {
@@ -11,6 +12,10 @@ type ScreenPlane = {
 };
 
 export default class ProjectedScreen {
+  private readonly highlight: THREE.Mesh<
+    THREE.ShapeGeometry,
+    THREE.MeshBasicMaterial
+  >;
   private readonly localCorners: THREE.Vector3[];
   private readonly projectedCorners = Array.from(
     { length: 4 },
@@ -30,6 +35,13 @@ export default class ProjectedScreen {
   ];
 
   constructor(screen: ScreenPlane) {
+    this.highlight = createHoverFrame(screen.width, screen.height);
+    this.highlight.position.set(
+      screen.centerX,
+      screen.centerY,
+      screen.centerZ + 0.015,
+    );
+    this.highlight.visible = false;
     this.localCorners = [
       new THREE.Vector3(
         screen.centerX - screen.width / 2,
@@ -52,6 +64,23 @@ export default class ProjectedScreen {
         screen.centerZ,
       ),
     ];
+  }
+
+  updateHighlight(anchor: THREE.Object3D, active: boolean, delta: number) {
+    if (this.highlight.parent !== anchor) anchor.add(this.highlight);
+    this.highlight.material.opacity = THREE.MathUtils.damp(
+      this.highlight.material.opacity,
+      active ? 0.95 : 0,
+      14,
+      delta,
+    );
+    this.highlight.visible = this.highlight.material.opacity > 0.001;
+  }
+
+  dispose() {
+    this.highlight.removeFromParent();
+    this.highlight.geometry.dispose();
+    this.highlight.material.dispose();
   }
 
   project(

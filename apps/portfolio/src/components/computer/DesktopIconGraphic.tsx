@@ -1,3 +1,4 @@
+import { CalendarDays } from 'lucide-react';
 import Image from 'next/image';
 
 import type { DesktopIconConfig } from './desktopConfig';
@@ -23,6 +24,15 @@ export default function DesktopIconGraphic({
         className={`${sizeClass} object-contain [image-rendering:pixelated]`}
         draggable={false}
       />
+    );
+  }
+
+  if (icon.id === 'calendar') {
+    return (
+      <span
+        className={`grid ${sizeClass} place-items-center rounded-sm border-2 border-[#d0d7de] bg-white text-[#1a73e8] shadow-[inset_0_4px_0_#ea4335,0_3px_8px_rgba(36,18,38,0.2)]`}>
+        <CalendarDays size={size === 'desktop' ? 31 : 18} strokeWidth={2.2} />
+      </span>
     );
   }
 
