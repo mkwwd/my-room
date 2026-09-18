@@ -195,6 +195,12 @@ export default function RoomScene() {
     const tvStation = new TvStation(room, manager);
 
     const environment = new RoomEnvironment(room, manager);
+    const stations = {
+      computer: computerStation,
+      tv: tvStation,
+      window: environment.roomWindow,
+      aquarium: environment.aquarium,
+    };
 
     const characterController = new RoomCharacterController({
       manager,
@@ -214,11 +220,7 @@ export default function RoomScene() {
     const interactionController = new RoomInteractionController({
       canvas: renderer.domElement,
       camera,
-      stations: {
-        computer: computerStation,
-        tv: tvStation,
-        window: environment.roomWindow,
-      },
+      stations,
       environment,
       character: characterController,
       getSceneMode: () => sceneModeRef.current,
@@ -245,6 +247,7 @@ export default function RoomScene() {
       viewportSize.width = width;
       viewportSize.height = height;
       cameraController.resize(width, height);
+      environment.aquarium.resize(width / height);
       renderer.setSize(width, height);
     };
 
@@ -270,7 +273,7 @@ export default function RoomScene() {
         );
         if (cat.children.length && !reducedMotion.matches)
           catController.walkTo(entrance.catTarget, delta, clock.elapsedTime);
-        entrance.updateFootprints(cat, delta);
+        entrance.updateCatShadow(cat);
         cameraController.setPose(
           entrance.cameraPosition,
           entrance.cameraTarget,
@@ -295,11 +298,9 @@ export default function RoomScene() {
         });
 
       const focusedStation =
-        sceneModeRef.current === 'tv'
-          ? tvStation
-          : sceneModeRef.current === 'window'
-            ? environment.roomWindow
-            : computerStation;
+        stations[
+          sceneModeRef.current === 'explore' ? 'computer' : sceneModeRef.current
+        ];
       if (entrance.complete)
         cameraController.follow({
           frame: cameraFrame,
@@ -330,13 +331,12 @@ export default function RoomScene() {
       );
 
       const isTvMode = sceneModeRef.current === 'tv';
-      const tvViewport = isTvMode
-        ? tvStation.getScreenViewport(
-            camera,
-            viewportSize.width,
-            viewportSize.height,
-          )
-        : null;
+      if (isTvMode) tvStation.turnOn();
+      const tvViewport = tvStation.getScreenViewport(
+        camera,
+        viewportSize.width,
+        viewportSize.height,
+      );
       const tvTransform = tvViewport
         ? createScreenTransform(tvViewport, TV_UI_WIDTH, TV_UI_HEIGHT)
         : null;
@@ -368,6 +368,11 @@ export default function RoomScene() {
       environment.updateSofaHover(
         sceneModeRef.current === 'explore' &&
           hoveredTargetRef.current === 'sofa',
+        hoverDelta,
+      );
+      environment.aquarium.updateHover(
+        sceneModeRef.current === 'explore' &&
+          hoveredTargetRef.current === 'aquarium',
         hoverDelta,
       );
       environment.update(

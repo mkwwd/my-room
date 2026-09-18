@@ -24,6 +24,18 @@ vm.runInNewContext(compiled.outputText, {
   exports: compiledModule.exports,
 });
 const { RoomCameraController } = compiledModule.exports;
+const configModule = { exports: {} };
+vm.runInNewContext(
+  ts.transpileModule(
+    readFileSync(
+      new URL('../src/components/room/roomConfig.ts', import.meta.url),
+      'utf8',
+    ),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+  ).outputText,
+  { module: configModule, exports: configModule.exports },
+);
+const { ROOM, ROOM_DEPTH_BOUNDS } = configModule.exports;
 const focusPosition = new THREE.Vector3(-4, 2, 2);
 const focusTarget = new THREE.Vector3(-6, 2, 2);
 const characterPosition = new THREE.Vector3();
@@ -45,6 +57,31 @@ function advance(controller, seconds, fps, mode = 'explore') {
     step(controller, 1 / fps, mode);
   }
 }
+
+test('wall tops stay above the exploration viewport on desktop and mobile', () => {
+  for (const aspect of [16 / 9, 768 / 1024, 390 / 844, 360 / 800]) {
+    const controller = new RoomCameraController(aspect);
+    for (const direction of [0, 1, 2, 3]) {
+      controller.setView(direction);
+      advance(controller, 4, 60);
+      controller.camera.updateMatrixWorld(true);
+      for (const x of [-ROOM.width / 2, ROOM.width / 2]) {
+        for (const z of [ROOM_DEPTH_BOUNDS.back, ROOM_DEPTH_BOUNDS.front]) {
+          const top = new THREE.Vector3(x, ROOM.wallHeight, z).applyMatrix4(
+            controller.camera.matrixWorldInverse,
+          );
+          const viewportTop =
+            -top.z *
+            Math.tan(THREE.MathUtils.degToRad(controller.camera.fov / 2));
+          assert.ok(
+            top.y > viewportTop,
+            `wall top visible: aspect=${aspect}, view=${direction}`,
+          );
+        }
+      }
+    }
+  }
+});
 
 test('an entrance pose hands the same camera to exploration without a jump', () => {
   const controller = new RoomCameraController(16 / 9);

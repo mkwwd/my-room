@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import * as THREE from 'three';
 import ts from 'typescript';
 
-function loadSource(name) {
+function loadSource(name, overrides = {}) {
   const path = fileURLToPath(
     new URL(`../src/components/room/${name}.ts`, import.meta.url),
   );
@@ -22,10 +22,63 @@ function loadSource(name) {
     module: compiledModule,
     exports: compiledModule.exports,
     require: (id) =>
-      id.startsWith('./') ? loadSource(id.slice(2)) : createRequire(path)(id),
+      overrides[id] ??
+      (id.startsWith('./')
+        ? loadSource(id.slice(2), overrides)
+        : createRequire(path)(id)),
   });
   return compiledModule.exports;
 }
+
+test('white wall fill preserves texture and fades with the switch without brightening the floor', () => {
+  class AssetStub {
+    isDaytime = true;
+    update() {}
+    dispose() {}
+  }
+  const Environment = loadSource('RoomEnvironment', {
+    './RoomFurniture': { default: AssetStub },
+    './RoomWindow': { default: AssetStub },
+    three: {
+      ...createRequire(import.meta.url)('three'),
+      TextureLoader: class {
+        load() {
+          return new THREE.Texture();
+        }
+      },
+    },
+  }).default;
+  for (const isDaytime of [true, false]) {
+    const room = new Environment(new THREE.Scene(), new THREE.LoadingManager());
+    room.roomWindow.isDaytime = isDaytime;
+    const materials = ['back', 'front', 'right'].map(
+      (name) => room.walls[name].material,
+    );
+    room.update(0, 1, false);
+    for (const material of materials) {
+      assert.equal(material.color.getHexString(), 'ffffff');
+      assert.ok(material.emissiveIntensity >= 0.3);
+      assert.ok(material.emissive.r > 0);
+      assert.equal(material.emissiveMap, material.map);
+      assert.ok(material.bumpMap && material.vertexColors);
+    }
+    assert.equal(room.floorPickTargets[0].material.emissive.getHex(), 0);
+    assert.equal(room.toggleLights(), false);
+    room.update(1 / 60, 1 / 60, false);
+    assert.ok(
+      materials[0].emissiveIntensity > 0 &&
+        materials[0].emissiveIntensity < 0.35,
+    );
+    for (let i = 1; i <= 120; i++) room.update(i / 60, 1 / 60, false);
+    for (const material of materials)
+      assert.ok(material.emissiveIntensity < 0.001);
+    room.toggleLights();
+    room.update(3, 1, false);
+    for (const material of materials)
+      assert.ok(material.emissiveIntensity > 0.3);
+    room.dispose();
+  }
+});
 
 test('room switch fades indoor lights without turning off morning or night window light', () => {
   const RoomLighting = loadSource('RoomLighting').default;

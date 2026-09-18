@@ -10,7 +10,12 @@ import {
 } from './roomConfig';
 import type RoomEnvironment from './RoomEnvironment';
 
-const INTERACTION_TARGETS: FocusMode[] = ['computer', 'tv', 'window'];
+const INTERACTION_TARGETS: FocusMode[] = [
+  'computer',
+  'tv',
+  'window',
+  'aquarium',
+];
 export const ROOM_MARKER_TARGETS: RoomHoverTarget[] = [
   ...INTERACTION_TARGETS,
   'sofa',

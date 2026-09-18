@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type WheelEvent } from 'react';
+import { useRef, useState, type WheelEvent } from 'react';
 
 import * as hangul from 'hangul-js';
 import { Expand, Play, Search, X } from 'lucide-react';
@@ -9,6 +9,20 @@ import YouTubeKeyboard from './YouTubeKeyboard';
 
 const MAX_SEARCH_HISTORY = 5;
 const SEARCH_HISTORY_KEY = 'youtube-search-histories';
+
+function readSearchHistory(): string[] {
+  try {
+    const saved = localStorage.getItem(SEARCH_HISTORY_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((entry): entry is string => typeof entry === 'string')
+          .slice(0, MAX_SEARCH_HISTORY)
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 type YouTubeVideo = {
   videoId: string;
@@ -53,6 +67,7 @@ function YouTubePlayer({ videoId }: { videoId: string }) {
       className="h-full w-full"
       src={`https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1`}
       title="YouTube video player"
+      referrerPolicy="strict-origin-when-cross-origin"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
       allowFullScreen
     />
@@ -65,7 +80,9 @@ export default function YouTubeSearch() {
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchHistories, setSearchHistories] = useState<string[]>([]);
+  const [searchError, setSearchError] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchHistories, setSearchHistories] = useState(readSearchHistory);
 
   const resultScrollRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +104,8 @@ export default function YouTubeSearch() {
   const clearKeyword = () => {
     setKeyword('');
     setVideos([]);
+    setSearchError('');
+    setHasSearched(false);
     setPlayingVideoId(null);
     setExpandedVideoId(null);
   };
@@ -96,16 +115,16 @@ export default function YouTubeSearch() {
 
     if (!trimmedKeyword) return;
 
-    setSearchHistories((prev) => {
-      const nextHistories = [
-        trimmedKeyword,
-        ...prev.filter((history) => history !== trimmedKeyword),
-      ].slice(0, MAX_SEARCH_HISTORY);
-
+    const nextHistories = [
+      trimmedKeyword,
+      ...searchHistories.filter((history) => history !== trimmedKeyword),
+    ].slice(0, MAX_SEARCH_HISTORY);
+    setSearchHistories(nextHistories);
+    try {
       localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(nextHistories));
-
-      return nextHistories;
-    });
+    } catch {
+      // Search still works when browser storage is unavailable.
+    }
   };
 
   const searchVideos = async (searchKeyword = keyword) => {
@@ -117,21 +136,29 @@ export default function YouTubeSearch() {
 
     try {
       setIsLoading(true);
+      setSearchError('');
+      setHasSearched(true);
       setPlayingVideoId(null);
       setExpandedVideoId(null);
 
       const response = await fetch(
         `/api/youtube?q=${encodeURIComponent(trimmedKeyword)}`,
       );
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Search failed');
+      if (!response.ok || !data) {
+        throw new Error(
+          data?.message || 'YouTube search is unavailable. Please try again.',
+        );
       }
 
       setVideos(Array.isArray(data.items) ? data.items : []);
     } catch (error) {
-      console.error(error);
+      setSearchError(
+        error instanceof Error
+          ? error.message
+          : 'Cannot connect to YouTube. Please try again.',
+      );
       setVideos([]);
     } finally {
       setIsLoading(false);
@@ -140,7 +167,7 @@ export default function YouTubeSearch() {
 
   const selectHistory = (history: string) => {
     setKeyword(history);
-    searchVideos(history);
+    void searchVideos(history);
   };
 
   const handleResultWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -152,22 +179,6 @@ export default function YouTubeSearch() {
     scrollContainer.scrollLeft += event.deltaY;
   };
 
-  useEffect(() => {
-    const savedHistories = localStorage.getItem(SEARCH_HISTORY_KEY);
-
-    if (!savedHistories) return;
-
-    try {
-      const parsedHistories = JSON.parse(savedHistories);
-
-      if (Array.isArray(parsedHistories)) {
-        setSearchHistories(parsedHistories);
-      }
-    } catch {
-      localStorage.removeItem(SEARCH_HISTORY_KEY);
-    }
-  }, []);
-
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden pt-1">
       <div className="flex h-12 max-w-[800px] shrink-0 items-center gap-3 rounded-full bg-[#2b2b2b] px-5">
@@ -178,7 +189,7 @@ export default function YouTubeSearch() {
           onChange={(event) => setKeyword(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
-              searchVideos();
+              void searchVideos();
             }
           }}
           placeholder="Search YouTube"
@@ -230,6 +241,12 @@ export default function YouTubeSearch() {
           <p className="text-sm text-white/50">Searching...</p>
         ) : null}
 
+        {!isLoading && searchError ? (
+          <p role="alert" className="text-sm text-red-300">
+            {searchError}
+          </p>
+        ) : null}
+
         {!isLoading && videos.length > 0 ? (
           <div
             ref={resultScrollRef}
@@ -246,6 +263,7 @@ export default function YouTubeSearch() {
                     <div className="relative aspect-video overflow-hidden rounded-sm bg-black">
                       {isPlaying ? (
                         <div
+                          data-tv-player
                           className={
                             expandedVideoId === video.videoId
                               ? 'fixed inset-0 z-[999] bg-black'
@@ -327,9 +345,11 @@ export default function YouTubeSearch() {
           </div>
         ) : null}
 
-        {!isLoading && keyword && videos.length === 0 ? (
+        {!isLoading && !searchError && keyword && videos.length === 0 ? (
           <p className="text-sm text-white/40">
-            Search results will appear here.
+            {hasSearched
+              ? 'No videos found. Try another search.'
+              : 'Search results will appear here.'}
           </p>
         ) : null}
       </div>

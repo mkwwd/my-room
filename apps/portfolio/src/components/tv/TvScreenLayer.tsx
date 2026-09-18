@@ -4,6 +4,7 @@ import { forwardRef } from 'react';
 
 import { TV_UI_HEIGHT, TV_UI_WIDTH } from './tvConfig';
 import TvScreen from './TvScreen';
+import styles from './TvScreenLayer.module.css';
 
 type TvScreenLayerProps = {
   isFocused: boolean;
@@ -14,7 +15,9 @@ const TvScreenLayer = forwardRef<HTMLDivElement, TvScreenLayerProps>(
     return (
       <div
         ref={ref}
-        className="pointer-events-none invisible absolute top-0 left-0 z-[2] origin-top-left overflow-hidden will-change-transform"
+        className={`${styles.screen} pointer-events-none invisible absolute top-0 left-0 z-[2] origin-top-left overflow-hidden will-change-transform`}
+        data-focused={isFocused}
+        inert={!isFocused}
         style={{
           width: `${TV_UI_WIDTH}px`,
           height: `${TV_UI_HEIGHT}px`,

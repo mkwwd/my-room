@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 
+import createEntranceGarden from './RoomEntranceGarden';
+
 const smooth = (value: number) => THREE.MathUtils.smoothstep(value, 0, 1);
 
-// A small, temporary foyer shares the room's renderer and camera. No second GLB
+// A small, temporary front garden shares the room's renderer and camera. No second GLB
 // or WebGL context is needed; the room stays behind the closed door until ready.
 export default class RoomEntrance {
   readonly root = new THREE.Group();
-  readonly footprints = new THREE.Group();
   readonly cameraPosition = new THREE.Vector3();
   readonly cameraTarget = new THREE.Vector3();
   readonly catStart: THREE.Vector3;
@@ -27,22 +28,11 @@ export default class RoomEntrance {
   private readonly insideTarget: THREE.Vector3;
   private readonly startTarget: THREE.Vector3;
   private readonly endTarget = new THREE.Vector3(0, 3, -0.5);
-  private readonly floorMaterial = new THREE.MeshStandardMaterial({
-    color: '#c8c8bc',
-    roughness: 0.94,
-    transparent: true,
-  });
   private readonly shadowTexture: THREE.DataTexture;
   private readonly shadow: THREE.Mesh<
     THREE.PlaneGeometry,
     THREE.MeshBasicMaterial
   >;
-  private readonly feet = new Map<
-    THREE.Object3D,
-    { y: number; descending: boolean; last: THREE.Vector3 }
-  >();
-  private readonly footPosition = new THREE.Vector3();
-  private markIndex = 0;
 
   constructor(
     private readonly destination: THREE.Vector3,
@@ -55,7 +45,7 @@ export default class RoomEntrance {
     this.catTarget = new THREE.Vector3(-0.45, 0, this.doorZ + 0.9);
     this.startTarget = new THREE.Vector3(0, 2.35, this.doorZ);
     this.cameraTarget.copy(this.startTarget);
-    this.cameraPosition.set(0, 2.35, this.doorZ + Math.max(15, 7 / aspect));
+    this.cameraPosition.set(0, 2.35, this.doorZ + Math.max(15, 12.6 / aspect));
     const threshold = new THREE.Vector3(0, 2.35, this.doorZ - 1.2);
     this.insideTarget = new THREE.Vector3(0, 2.35, this.doorZ - 6);
     this.path = new THREE.CubicBezierCurve3(
@@ -71,7 +61,7 @@ export default class RoomEntrance {
       destination.clone(),
     );
     const plaster = new THREE.MeshStandardMaterial({
-      color: '#dddeda',
+      color: '#dceaf0',
       roughness: 0.95,
     });
     const trim = new THREE.MeshStandardMaterial({
@@ -122,12 +112,7 @@ export default class RoomEntrance {
     box(this.root, [3.2, 20, 0.35], [0, 14.6, this.doorZ], plaster);
     box(this.root, [3.45, 0.17, 0.46], [0, 4.64, this.doorZ + 0.04], trim);
     box(this.root, [3.25, 0.055, 0.5], [0, 0.02, this.doorZ], metal);
-    box(
-      this.root,
-      [60, 0.12, 18],
-      [0, -0.065, this.doorZ + 9],
-      this.floorMaterial,
-    );
+    this.root.add(createEntranceGarden(this.doorZ));
     this.hinge.position.set(-1.6, 0, this.doorZ);
     this.root.add(this.hinge);
     box(this.hinge, [3.18, 4.55, 0.15], [1.6, 2.3, 0], paint);
@@ -143,7 +128,7 @@ export default class RoomEntrance {
     this.key.position.set(-3, 7, this.doorZ + 5);
     this.key.target.position.set(0, 1, this.doorZ);
     this.lights.add(this.fill, this.key, this.key.target);
-    this.root.add(this.lights, this.footprints);
+    this.root.add(this.lights);
 
     const pixels = new Uint8Array(32 * 32 * 4);
     for (let y = 0; y < 32; y++)
@@ -167,36 +152,6 @@ export default class RoomEntrance {
     this.shadow.rotation.x = -Math.PI / 2;
     this.root.add(this.shadow);
     this.shadow.visible = false;
-
-    // Reuse a bounded pool of ground-aligned paw impressions.
-    const paw = new THREE.Shape();
-    paw.absellipse(0, -0.018, 0.043, 0.038, 0, Math.PI * 2, false, 0);
-    const shapes = [paw];
-    for (const [x, y, radius] of [
-      [-0.045, 0.035, 0.018],
-      [-0.016, 0.055, 0.019],
-      [0.018, 0.055, 0.019],
-      [0.047, 0.03, 0.017],
-    ]) {
-      const toe = new THREE.Shape();
-      toe.absellipse(x, y, radius, radius * 1.2, 0, Math.PI * 2, false, 0);
-      shapes.push(toe);
-    }
-    const geometry = new THREE.ShapeGeometry(shapes, 8);
-    for (let i = 0; i < 28; i++) {
-      const mark = new THREE.Mesh(
-        geometry,
-        new THREE.MeshBasicMaterial({
-          color: '#7b7467',
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-        }),
-      );
-      mark.rotation.x = -Math.PI / 2;
-      mark.visible = false;
-      this.footprints.add(mark);
-    }
   }
 
   update(
@@ -246,58 +201,13 @@ export default class RoomEntrance {
     this.key.intensity = 2 * foyerLight;
   }
 
-  updateFootprints(cat: THREE.Object3D, delta: number) {
-    cat.updateWorldMatrix(true, true);
+  updateCatShadow(cat: THREE.Object3D) {
     this.shadow.visible = cat.children.length > 0;
     this.shadow.position.set(
       cat.position.x + 0.08,
       0.006,
       cat.position.z + 0.04,
     );
-    if (!this.feet.size)
-      cat.traverse((bone) => {
-        if (
-          (bone as THREE.Bone).isBone &&
-          /(?:0_(?:Left|Right)_Limb_3|1_(?:Left|Right)_Limb_2)$/.test(bone.name)
-        ) {
-          this.feet.set(bone, {
-            y: Infinity,
-            descending: false,
-            last: new THREE.Vector3(Infinity, 0, Infinity),
-          });
-        }
-      });
-    for (const mark of this.footprints.children as THREE.Mesh<
-      THREE.ShapeGeometry,
-      THREE.MeshBasicMaterial
-    >[]) {
-      mark.material.opacity = Math.max(
-        0,
-        mark.material.opacity - delta * 0.035,
-      );
-      mark.visible = mark.material.opacity > 0.01;
-    }
-    for (const [foot, state] of this.feet) {
-      foot.getWorldPosition(this.footPosition);
-      const y = this.footPosition.y;
-      if (
-        state.descending &&
-        y >= state.y &&
-        y < 0.22 &&
-        this.footPosition.distanceTo(state.last) > 0.17
-      ) {
-        const mark = this.footprints.children[
-          this.markIndex++ % this.footprints.children.length
-        ] as THREE.Mesh<THREE.ShapeGeometry, THREE.MeshBasicMaterial>;
-        mark.position.set(this.footPosition.x, 0.008, this.footPosition.z);
-        mark.rotation.z = -cat.rotation.y + Math.PI;
-        mark.material.opacity = 0.34;
-        mark.visible = true;
-        state.last.copy(this.footPosition);
-      }
-      state.descending = y < state.y - 0.0002;
-      state.y = y;
-    }
   }
 
   dispose() {
@@ -306,16 +216,21 @@ export default class RoomEntrance {
     this.root.removeFromParent();
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
+    const textures = new Set<THREE.Texture>();
     this.root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       geometries.add(object.geometry);
+      if (object instanceof THREE.InstancedMesh) object.dispose();
       for (const material of Array.isArray(object.material)
         ? object.material
-        : [object.material])
+        : [object.material]) {
         materials.add(material);
+        const map = (material as THREE.MeshStandardMaterial).map;
+        if (map) textures.add(map);
+      }
     });
     geometries.forEach((geometry) => geometry.dispose());
     materials.forEach((material) => material.dispose());
-    this.shadowTexture.dispose();
+    textures.forEach((texture) => texture.dispose());
   }
 }

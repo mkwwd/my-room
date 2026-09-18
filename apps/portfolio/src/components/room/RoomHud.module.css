@@ -19,3 +19,31 @@
   pointer-events: auto;
   cursor: pointer;
 }
+
+.closeButton {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 10%);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 92%);
+  color: #36443b;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 14%);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 150ms;
+}
+
+.closeButton:hover {
+  background: #dcebdc;
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid #397454;
+  outline-offset: 3px;
+}

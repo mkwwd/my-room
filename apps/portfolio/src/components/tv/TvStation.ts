@@ -23,6 +23,8 @@ export default class TvStation {
   private readonly pickTargets: THREE.Object3D[] = [];
   private readonly projectedScreen = new ProjectedScreen(TV_SCREEN);
   private isScreenReady = false;
+  private isPoweredOn = false;
+  private readonly cameraLocalPosition = new THREE.Vector3();
   private isDisposed = false;
 
   constructor(
@@ -48,12 +50,20 @@ export default class TvStation {
     );
   }
 
+  turnOn() {
+    this.isPoweredOn = true;
+  }
+
   getScreenViewport(
     camera: THREE.Camera,
     viewportWidth: number,
     viewportHeight: number,
   ): ProjectedScreenViewport | null {
-    if (!this.isScreenReady) return null;
+    if (!this.isScreenReady || !this.isPoweredOn) return null;
+    this.anchor.updateWorldMatrix(true, false);
+    camera.getWorldPosition(this.cameraLocalPosition);
+    this.anchor.worldToLocal(this.cameraLocalPosition);
+    if (this.cameraLocalPosition.z <= TV_SCREEN.centerZ + 0.01) return null;
     return this.projectedScreen.project(
       this.anchor,
       camera,

@@ -53,7 +53,12 @@ function setup() {
   const controller = new Controller({
     canvas,
     camera,
-    stations: { computer: station(-3), tv: station(0), window: station(3) },
+    stations: {
+      computer: station(-3),
+      tv: station(0),
+      window: station(3),
+      aquarium: station(1.5),
+    },
     environment: {
       walls,
       door: {
@@ -116,15 +121,29 @@ function setup() {
   };
 }
 
-test('all four discoverable markers project without hovering and idle frames do not publish again', () => {
+test('all five discoverable targets project without hovering and idle frames do not publish again', () => {
   const state = setup();
   state.controller.updateHint(800, 800);
   assert.equal(
     Object.values(state.positions ?? {}).filter((p) => p.visible).length,
-    4,
+    5,
   );
   state.controller.updateHint(800, 800);
   assert.equal(state.updates, 1);
+  state.controller.dispose();
+});
+
+test('aquarium activation enters focus and hides exploration targets', () => {
+  const state = setup();
+  state.controller.updateHint(800, 800);
+  assert.equal(state.positions.aquarium?.visible, true);
+  state.controller.setHoveredTarget('aquarium');
+  assert.equal(state.hovered, 'aquarium');
+  assert.equal(state.controller.activateTarget('aquarium'), true);
+  assert.equal(state.mode, 'aquarium');
+  assert.equal(state.hovered, null);
+  state.controller.updateHint(800, 800);
+  assert.ok(Object.values(state.positions).every((p) => !p.visible));
   state.controller.dispose();
 });
 

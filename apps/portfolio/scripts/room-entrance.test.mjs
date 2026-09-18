@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -7,11 +7,8 @@ import vm from 'node:vm';
 import * as THREE from 'three';
 import ts from 'typescript';
 
-const path = fileURLToPath(
-  new URL('../src/components/room/RoomEntrance.ts', import.meta.url),
-);
-let Entrance;
-if (existsSync(path)) {
+function loadSource(url) {
+  const path = fileURLToPath(url);
   const compiledModule = { exports: {} };
   vm.runInNewContext(
     ts.transpileModule(readFileSync(path, 'utf8'), {
@@ -21,13 +18,19 @@ if (existsSync(path)) {
       },
     }).outputText,
     {
-      require: createRequire(path),
+      require: (id) =>
+        id.startsWith('.')
+          ? loadSource(new URL(`${id}.ts`, url))
+          : createRequire(path)(id),
       exports: compiledModule.exports,
       module: compiledModule,
     },
   );
-  Entrance = compiledModule.exports.default;
+  return compiledModule.exports;
 }
+const Entrance = loadSource(
+  new URL('../src/components/room/RoomEntrance.ts', import.meta.url),
+).default;
 
 test('the door waits for assets and the cat, crosses into the room and settles into exploration', () => {
   assert.equal(typeof Entrance, 'function');
@@ -115,25 +118,217 @@ test('the threshold touches the actual room, independently of the overview camer
   }
 });
 
-test('footprints are deposited at foot contacts, not progress changes or idle frames', () => {
-  assert.equal(typeof Entrance, 'function');
+test('only the soft cat shadow follows the cat, without a footprint trail', () => {
   const entry = new Entrance(new THREE.Vector3(0, 10.5, 15), 16 / 9, 8.6);
   const cat = new THREE.Group();
-  const foot = new THREE.Bone();
-  foot.name = 'tripo0_Left_Limb_3';
-  cat.add(foot);
-  for (const height of [0.16, 0.1, 0.05, 0.06]) {
-    foot.position.set(0.1, height, entry.doorZ + 1);
-    entry.updateFootprints(cat, 1 / 60);
+  const decals = [];
+  entry.root.traverse((object) => {
+    if (object.isMesh && object.material.isMeshBasicMaterial)
+      decals.push(object);
+  });
+  assert.equal(decals.length, 1, 'one soft shadow, no pooled paw decals');
+  const shadow = decals[0];
+  entry.updateCatShadow(cat);
+  assert.equal(shadow.visible, false, 'no shadow before the cat loads');
+  cat.add(new THREE.Group());
+  for (let i = 0; i < 60; i++) {
+    cat.position.set(-2.5 + i * 0.025, 0, entry.doorZ + 3 - i * 0.02);
+    entry.updateCatShadow(cat);
+    assert.equal(shadow.visible, true);
+    assert.ok(Math.abs(shadow.position.x - cat.position.x) < 0.1);
+    assert.ok(Math.abs(shadow.position.z - cat.position.z) < 0.1);
   }
-  assert.equal(
-    entry.footprints.children.filter((mark) => mark.visible).length,
-    1,
-  );
-  for (let i = 0; i < 60; i++) entry.updateFootprints(cat, 1 / 60);
-  assert.equal(
-    entry.footprints.children.filter((mark) => mark.visible).length,
-    1,
+  assert.ok(shadow.material.map?.isDataTexture);
+  entry.dispose();
+});
+
+test('the garden is framed on desktop and mobile without blocking the cat or doorway', () => {
+  for (const aspect of [16 / 9, 390 / 844]) {
+    const entry = new Entrance(new THREE.Vector3(0, 10.5, 15), aspect, 8.6);
+    const garden = entry.root.getObjectByName('EntranceGarden');
+    assert.ok(garden, '3D front garden');
+    entry.root.updateMatrixWorld(true);
+    const mailbox = garden.getObjectByName('Mailbox');
+    const mailboxBody = mailbox.children.find(
+      (object) => object.geometry?.type === 'ExtrudeGeometry',
+    );
+    assert.ok(
+      mailboxBody.material.color.r > mailboxBody.material.color.g * 2 &&
+        mailboxBody.material.color.r > mailboxBody.material.color.b * 2,
+      'red mailbox body',
+    );
+    const bounds = new THREE.Box3().setFromObject(mailbox);
+    assert.ok(bounds.min.x > 1.8, 'mailbox stays right of the door');
+    const camera = new THREE.PerspectiveCamera(entry.fov, aspect, 0.1, 100);
+    camera.position.copy(entry.cameraPosition);
+    camera.lookAt(entry.cameraTarget);
+    camera.updateMatrixWorld(true);
+    for (const corner of [bounds.min, bounds.max]) {
+      const point = corner.clone().project(camera);
+      assert.ok(
+        Math.abs(point.x) < 0.97 && Math.abs(point.y) < 0.97,
+        'mailbox fits',
+      );
+    }
+    const stems = garden.getObjectByName('TulipStems');
+    assert.ok(stems.count >= 15 && stems.count <= 24, 'smaller flower groups');
+    const positions = [];
+    const matrix = new THREE.Matrix4();
+    const approach = new THREE.Line3(entry.catStart, entry.catTarget);
+    for (let i = 0; i < stems.count; i++) {
+      stems.getMatrixAt(i, matrix);
+      const center = new THREE.Vector3()
+        .setFromMatrixPosition(matrix)
+        .applyMatrix4(stems.matrixWorld);
+      positions.push(center);
+      assert.ok(Math.abs(center.x) > 1.85, 'doorway remains clear');
+      center.y = 0;
+      assert.ok(
+        center.distanceTo(
+          approach.closestPointToPoint(center, true, new THREE.Vector3()),
+        ) > 0.5,
+        'cat does not walk through flowers',
+      );
+    }
+    assert.ok(positions.some((p) => p.x < 0) && positions.some((p) => p.x > 0));
+    for (let i = 0; i < positions.length; i++) {
+      for (let j = i + 1; j < positions.length; j++) {
+        assert.ok(
+          positions[i].distanceTo(positions[j]) > 0.36,
+          'flower heads have breathing room',
+        );
+      }
+    }
+    const grass = garden.getObjectByName('Lawn');
+    assert.ok(
+      grass.material.map?.isDataTexture,
+      'grass texture needs no network request',
+    );
+    entry.dispose();
+  }
+});
+
+test('stepping stones have visible low sides and bevels while remaining grounded', () => {
+  const entry = new Entrance(new THREE.Vector3(0, 10.5, 15), 16 / 9, 8.6);
+  entry.root.updateMatrixWorld(true);
+  const stones = entry.root.getObjectsByProperty('name', 'SteppingStone');
+  assert.equal(stones.length, 5);
+  let previousBounds;
+  for (const step of stones) {
+    const bounds = new THREE.Box3().setFromObject(step);
+    assert.ok(bounds.min.y <= 0, 'stone is set into the lawn');
+    assert.ok(
+      bounds.max.y >= 0.05 && bounds.max.y <= 0.1,
+      'low but visibly raised',
+    );
+    assert.ok(step.geometry.parameters.options.bevelEnabled);
+    assert.ok(Array.isArray(step.material), 'separate top and side shading');
+    assert.ok(
+      step.material[0].color.r > step.material[1].color.r,
+      'lighter top',
+    );
+    assert.ok(
+      Math.max(
+        step.material[0].color.r,
+        step.material[0].color.g,
+        step.material[0].color.b,
+      ) < 0.3,
+      'muted dark stone, not white paving',
+    );
+    if (previousBounds) {
+      assert.ok(
+        bounds.min.z - previousBounds.max.z > 0.15,
+        'visible lawn between neighboring stones',
+      );
+    }
+    previousBounds = bounds;
+  }
+  entry.dispose();
+});
+
+test('low shrubs and wall lanterns fill both outer sides without obstructing the entrance', () => {
+  const entry = new Entrance(new THREE.Vector3(0, 10.5, 15), 1867 / 862, 8.6);
+  entry.root.updateMatrixWorld(true);
+  const shrubs = entry.root.getObjectsByProperty('name', 'EntranceShrub');
+  const lanterns = entry.root.getObjectsByProperty('name', 'WallLantern');
+  assert.equal(shrubs.length, 2);
+  assert.equal(lanterns.length, 2);
+  const camera = new THREE.PerspectiveCamera(entry.fov, 1867 / 862, 0.1, 100);
+  camera.position.copy(entry.cameraPosition);
+  camera.lookAt(entry.cameraTarget);
+  camera.updateMatrixWorld(true);
+  const sides = new Set();
+  for (const object of [...shrubs, ...lanterns]) {
+    const bounds = new THREE.Box3().setFromObject(object);
+    const center = bounds.getCenter(new THREE.Vector3());
+    sides.add(Math.sign(center.x));
+    assert.ok(
+      bounds.max.x < -3.9 || bounds.min.x > 3.9,
+      'leave flowers, mailbox and cat path clear',
+    );
+    for (const corner of [bounds.min, bounds.max]) {
+      const projected = corner.clone().project(camera);
+      assert.ok(
+        Math.abs(projected.x) < 0.97 && Math.abs(projected.y) < 0.97,
+        'side decorations fit the wide screenshot framing',
+      );
+    }
+    if (object.name === 'EntranceShrub') {
+      assert.ok(
+        bounds.max.y < 1.3 && bounds.min.y < 0.18,
+        'low, grounded planting',
+      );
+      assert.ok(
+        bounds.max.x - bounds.min.x > 1.5,
+        'planting fills the empty outer margin',
+      );
+    } else {
+      assert.ok(
+        bounds.min.z >= entry.doorZ + 0.17,
+        'mount on the exterior face of the wall',
+      );
+    }
+  }
+  assert.equal(sides.size, 2);
+  entry.dispose();
+});
+
+test('garden geometry stays lightweight and all shared GPU resources are released once', () => {
+  const entry = new Entrance(new THREE.Vector3(0, 10.5, 15), 16 / 9, 8.6);
+  const garden = entry.root.getObjectByName('EntranceGarden');
+  assert.ok(garden);
+  const resources = new Set();
+  let triangles = 0;
+  let draws = 0;
+  entry.root.traverse((object) => {
+    if (!object.isMesh) return;
+    resources.add(object.geometry);
+    for (const material of Array.isArray(object.material)
+      ? object.material
+      : [object.material]) {
+      resources.add(material);
+      if (material.map) resources.add(material.map);
+    }
+    if (object.isInstancedMesh) resources.add(object);
+  });
+  garden.traverse((object) => {
+    if (!object.isMesh) return;
+    draws++;
+    triangles +=
+      ((object.geometry.index?.count ??
+        object.geometry.attributes.position.count) /
+        3) *
+      (object.count ?? 1);
+  });
+  assert.ok(draws <= 35, `${draws} garden draws`);
+  assert.ok(triangles < 40000, `${triangles} garden triangles`);
+  const disposed = new Map();
+  resources.forEach((resource) =>
+    resource.addEventListener('dispose', () =>
+      disposed.set(resource, (disposed.get(resource) ?? 0) + 1),
+    ),
   );
   entry.dispose();
+  entry.dispose();
+  resources.forEach((resource) => assert.equal(disposed.get(resource), 1));
 });
