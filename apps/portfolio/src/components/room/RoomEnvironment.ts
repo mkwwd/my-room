@@ -209,7 +209,9 @@ function buildRoom(
   floorMaterial.vertexColors = true;
   const wallMaterial = makeMaterial(ROOM_COLORS.wall);
   wallMaterial.map = wallTexture;
-  wallMaterial.color.set('#efede8');
+  wallMaterial.emissive.set('#fffaf2');
+  wallMaterial.emissiveMap = wallTexture;
+  wallMaterial.emissiveIntensity = 0.35;
   wallMaterial.bumpMap = wallTexture;
   wallMaterial.bumpScale = 0.012;
   wallMaterial.roughness = 0.95;
@@ -313,6 +315,7 @@ export default class RoomEnvironment {
   private readonly root = new THREE.Group();
   private readonly floorTexture: THREE.Texture;
   private readonly wallTexture = makeWallTexture();
+  private readonly wallMaterials: THREE.MeshStandardMaterial[];
   private readonly lighting = new RoomLighting(this.root);
   private readonly furniture: RoomFurniture;
   readonly roomWindow: RoomWindow;
@@ -334,14 +337,28 @@ export default class RoomEnvironment {
       this.floorTexture,
       this.wallTexture,
     );
+    // The window wall shares the back wall's material; the other two are clones.
+    this.wallMaterials = [
+      this.walls.back,
+      this.walls.front,
+      this.walls.right,
+    ].map((wall) => wall.material as THREE.MeshStandardMaterial);
     this.furniture = new RoomFurniture(this.root, manager);
     this.roomWindow = new RoomWindow(this.walls.left, manager);
     this.door = new RoomDoor(this.walls.front);
   }
 
+  get aquarium() {
+    return this.furniture.aquarium;
+  }
+
   update(elapsedTime: number, delta: number, switchHovered: boolean) {
     this.roomWindow.update(elapsedTime);
     this.lighting.update(delta, this.roomWindow.isDaytime);
+    // Approximate bounced indoor light on walls without lifting furniture exposure.
+    for (const material of this.wallMaterials) {
+      material.emissiveIntensity = 0.35 * this.lighting.indoorLevel;
+    }
     this.furniture.update(elapsedTime, this.lighting.indoorLevel);
     this.door.update(this.lighting.isOn, switchHovered, delta);
     this.updateSkyBackground(elapsedTime);

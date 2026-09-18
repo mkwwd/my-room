@@ -1,4 +1,4 @@
-export type FocusMode = 'computer' | 'tv' | 'window';
+export type FocusMode = 'computer' | 'tv' | 'window' | 'aquarium';
 export type SceneMode = 'explore' | FocusMode;
 export type RoomHoverTarget = FocusMode | 'sofa' | 'lightSwitch';
 
@@ -12,7 +12,7 @@ export type RoomCollisionBox = {
 export const ROOM = {
   width: 13.4,
   depth: 20,
-  wallHeight: 8,
+  wallHeight: 22,
   playerLimitX: 5.25,
   playerLimitZ: 8.75,
 } as const;
@@ -21,7 +21,7 @@ export const ROOM_COLORS = {
   sky: '#c9ecff',
   nightSky: '#030b1c',
   floor: '#ffffff',
-  wall: '#e7f7ff',
+  wall: '#ffffff',
 } as const;
 
 export const WALL_THICKNESS = 0.32;
@@ -45,7 +45,7 @@ export const ROOM_WINDOW = {
 } as const;
 
 export const ROOM_MODELS = {
-  desk: '/models/whitedesk.glb',
+  desk: '/models/cozy-desk.glb',
   computerDesk: '/models/computerdesk.glb',
   computer: '/models/computer.glb',
   carpet: '/models/carpet.glb',
@@ -60,6 +60,8 @@ export const ROOM_MODELS = {
   cloud3: '/models/cloud3.glb',
   cabinet: '/models/modern_desk.glb',
   bikini1: '/models/bikini1.glb',
+  clownfish: '/models/clownfish.glb',
+  blueTang: '/models/blue-tang.glb',
   toystory: '/models/toystory.glb',
   cat: '/models/cat.glb',
   character: '/models/doll.glb?v=decimated-20260723',
@@ -81,7 +83,7 @@ export const MODEL_TARGET_WIDTH = {
   tulip: 0.62,
 } as const;
 
-export const DESK_ROTATION_Y = (23.72 * Math.PI) / 180;
+export const DESK_DEPTH = 1.65;
 export const DESK_SURFACE_HEIGHT = 1.72;
 export const COMPUTER_DESK_ROTATION_Y = Math.PI / 2;
 export const COMPUTER_DESK_HEIGHT_SCALE = 1.25;
@@ -90,7 +92,7 @@ export const COMPUTER_DESK_HEIGHT =
 export const COMPUTER_SURFACE_HEIGHT =
   DESK_SURFACE_HEIGHT + COMPUTER_DESK_HEIGHT;
 export const COMPUTER_BASE_HEIGHT = COMPUTER_SURFACE_HEIGHT + 0.05;
-export const COMPUTER_STATION_WALL_INSET = 1.35;
+export const COMPUTER_STATION_WALL_INSET = DESK_DEPTH / 2 + 0.025;
 export const TV_BOTTOM_HEIGHT = 2.28;
 
 export const COMPUTER_SCREEN = {
@@ -118,8 +120,8 @@ export const ROOM_COLLISION_BOXES: RoomCollisionBox[] = [
   {
     centerX: -ROOM.width / 2 + COMPUTER_STATION_WALL_INSET,
     centerZ: 2,
-    halfWidth: 1,
-    halfDepth: 2.05,
+    halfWidth: DESK_DEPTH / 2,
+    halfDepth: MODEL_TARGET_WIDTH.desk / 2,
   },
   {
     centerX: 0,

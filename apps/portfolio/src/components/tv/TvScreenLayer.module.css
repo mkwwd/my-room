@@ -1,0 +1,10 @@
+/* Keep the same iframe mounted while it fills the TV during exploration. */
+.screen[data-focused='false'] [data-tv-player] {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.screen[data-focused='false'] [data-tv-player] button {
+  display: none;
+}

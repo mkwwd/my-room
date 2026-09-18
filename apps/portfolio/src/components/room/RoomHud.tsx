@@ -1,3 +1,5 @@
+import { X } from 'lucide-react';
+
 import RoomCameraControls, { type ViewDirection } from './RoomCamera';
 import type { RoomHoverTarget, SceneMode } from './roomConfig';
 import styles from './RoomHud.module.css';
@@ -22,6 +24,7 @@ const TARGET_ACTIONS = {
   computer: 'Open computer',
   tv: 'Watch TV',
   window: 'Look through window',
+  aquarium: 'Look at aquarium',
   sofa: 'Sit or stand up',
   lightSwitch: 'Room lights',
 };
@@ -77,16 +80,29 @@ export default function RoomHud({
 
       {sceneMode !== 'explore' ? (
         <div className="pointer-events-none absolute inset-0 z-[5]">
-          <button
-            type="button"
-            className="pointer-events-auto absolute top-0 bottom-0 left-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-start border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
-            onClick={onExitFocus}
-            aria-label="Back to room from the left side"></button>
-          <button
-            type="button"
-            className="pointer-events-auto absolute top-0 right-0 bottom-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-end border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
-            onClick={onExitFocus}
-            aria-label="Back to room from the right side"></button>
+          {sceneMode === 'aquarium' ? (
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={onExitFocus}
+              aria-label="Close aquarium view"
+              title="Back to room">
+              <X size={22} aria-hidden="true" />
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="pointer-events-auto absolute top-0 bottom-0 left-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-start border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
+                onClick={onExitFocus}
+                aria-label="Back to room from the left side"></button>
+              <button
+                type="button"
+                className="pointer-events-auto absolute top-0 right-0 bottom-0 z-[1] flex w-[clamp(64px,12vw,180px)] cursor-pointer items-center justify-end border-0 bg-transparent px-4 text-[#fff6df] transition-colors duration-200 hover:bg-[#17110e]/12 focus-visible:bg-[#17110e]/16"
+                onClick={onExitFocus}
+                aria-label="Back to room from the right side"></button>
+            </>
+          )}
         </div>
       ) : null}
 

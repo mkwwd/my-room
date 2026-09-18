@@ -126,7 +126,7 @@ export default class RoomFurniture {
   private readonly shelfGlowTexture = makeShelfGlowTexture();
   private readonly shelfLights: ShelfLight[] = [];
   private readonly shelfMaterials: THREE.MeshStandardMaterial[] = [];
-  private aquarium: RoomAquarium | null = null;
+  readonly aquarium: RoomAquarium;
   private isDisposed = false;
 
   constructor(
@@ -151,7 +151,7 @@ export default class RoomFurniture {
     this.shelfMaterials.forEach((material) => {
       material.emissiveIntensity = 0.25 * lightLevel;
     });
-    this.aquarium?.update(elapsedTime);
+    this.aquarium.update(elapsedTime);
   }
 
   updateSofaHover(active: boolean, delta: number) {
@@ -165,8 +165,7 @@ export default class RoomFurniture {
 
   dispose() {
     this.isDisposed = true;
-    this.aquarium?.dispose();
-    this.aquarium = null;
+    this.aquarium.dispose();
     this.parent.remove(this.root);
     this.shelfWallTexture.dispose();
     this.shelfGlowTexture?.dispose();
