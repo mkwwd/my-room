@@ -8,8 +8,14 @@ export type DesktopIconId =
   | 'velog'
   | 'project'
   | 'contact'
-  | 'calendar';
-export type DesktopAppId = 'github' | 'velog' | 'contact' | 'calendar';
+  | 'calendar'
+  | 'gallery';
+export type DesktopAppId =
+  | 'github'
+  | 'velog'
+  | 'contact'
+  | 'calendar'
+  | 'gallery';
 
 export type DesktopIconPosition = {
   x: number;
@@ -80,6 +86,12 @@ export const desktopIcons: DesktopIconConfig[] = [
     fallbackText: '31',
     fallbackTone: 'bg-white text-[#1a73e8]',
   },
+  {
+    id: 'gallery',
+    label: 'Gallery',
+    fallbackText: 'G',
+    fallbackTone: 'bg-[#9ef2c3] text-[#173329]',
+  },
 ];
 
 export const defaultDesktopIconPositions: Record<
@@ -91,6 +103,7 @@ export const defaultDesktopIconPositions: Record<
   project: { x: 26, y: 216 },
   contact: { x: 26, y: 312 },
   calendar: { x: 26, y: 408 },
+  gallery: { x: 122, y: 24 },
 };
 
 export const desktopApps: Record<DesktopAppId, DesktopAppConfig> = {
@@ -114,6 +127,11 @@ export const desktopApps: Record<DesktopAppId, DesktopAppConfig> = {
     title: 'Calendar',
     iconId: 'calendar',
   },
+  gallery: {
+    id: 'gallery',
+    title: 'Gallery',
+    iconId: 'gallery',
+  },
 };
 
 export const desktopAppByIcon: Partial<Record<DesktopIconId, DesktopAppId>> = {
@@ -121,4 +139,5 @@ export const desktopAppByIcon: Partial<Record<DesktopIconId, DesktopAppId>> = {
   velog: 'velog',
   contact: 'contact',
   calendar: 'calendar',
+  gallery: 'gallery',
 };

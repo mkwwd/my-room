@@ -1,6 +1,24 @@
-export type FocusMode = 'computer' | 'tv' | 'window' | 'aquarium';
+export type FocusMode =
+  | 'computer'
+  | 'tv'
+  | 'window'
+  | 'aquarium'
+  | 'portrait'
+  | 'landscape'
+  | 'square';
 export type SceneMode = 'explore' | FocusMode;
-export type RoomHoverTarget = FocusMode | 'sofa' | 'lightSwitch';
+export type RoomSeatId = 'sofa' | 'chair';
+export type RoomHoverTarget =
+  | FocusMode
+  | RoomSeatId
+  | 'lightSwitch'
+  | 'floorLamp';
+export type RoomSeat = {
+  position: readonly [number, number, number];
+  exitPosition: readonly [number, number, number];
+  rotationY: number;
+  interactionRadius: number;
+};
 
 export type RoomCollisionBox = {
   centerX: number;
@@ -48,6 +66,9 @@ export const ROOM_MODELS = {
   desk: '/models/cozy-desk.glb',
   computerDesk: '/models/computerdesk.glb',
   computer: '/models/computer.glb',
+  keyboard: '/models/cozy-keyboard.glb',
+  mouse: '/models/cozy-mouse.glb',
+  gamingChair: '/models/cozy-gaming-chair.glb',
   carpet: '/models/carpet.glb',
   miniTable: '/models/minitable.glb',
   pinkSofa: '/models/pinksofa.glb',
@@ -63,8 +84,9 @@ export const ROOM_MODELS = {
   clownfish: '/models/clownfish.glb',
   blueTang: '/models/blue-tang.glb',
   toystory: '/models/toystory.glb',
-  cat: '/models/cat.glb',
-  character: '/models/doll.glb?v=decimated-20260723',
+  // Original cat.glb and doll.glb are retained for switching back.
+  cat: '/models/cat-custom.glb?v=faithful-1',
+  character: '/models/doll-blink.glb?v=1',
   tulip: '/models/tulip.glb',
 } as const;
 
@@ -93,12 +115,23 @@ export const COMPUTER_SURFACE_HEIGHT =
   DESK_SURFACE_HEIGHT + COMPUTER_DESK_HEIGHT;
 export const COMPUTER_BASE_HEIGHT = COMPUTER_SURFACE_HEIGHT + 0.05;
 export const COMPUTER_STATION_WALL_INSET = DESK_DEPTH / 2 + 0.025;
+export const COMPUTER_DESKTOP_OFFSET_Z = -0.22;
 export const TV_BOTTOM_HEIGHT = 2.28;
+
+export const ROOM_FLOOR_LAMP = {
+  position: [-4.15, 0.01, -8.98],
+  scale: 1.3,
+} as const;
+
+export const COMPUTER_CHAIR = {
+  position: [-3.85, 0, 2.1],
+  rotationY: -Math.PI / 2,
+} as const;
 
 export const COMPUTER_SCREEN = {
   centerX: -0.1,
   centerY: COMPUTER_BASE_HEIGHT + 0.71,
-  centerZ: 0,
+  centerZ: COMPUTER_DESKTOP_OFFSET_Z,
   width: 1.72,
   height: 1.04,
   focusDistance: 2.45,
@@ -106,9 +139,22 @@ export const COMPUTER_SCREEN = {
 
 export const ROOM_COLLISION_BOXES: RoomCollisionBox[] = [
   {
+    centerX: ROOM_FLOOR_LAMP.position[0],
+    centerZ: ROOM_FLOOR_LAMP.position[2],
+    halfWidth: 0.48 * ROOM_FLOOR_LAMP.scale,
+    halfDepth: 0.48 * ROOM_FLOOR_LAMP.scale,
+  },
+  {
+    centerX: COMPUTER_CHAIR.position[0],
+    centerZ: COMPUTER_CHAIR.position[2],
+    halfWidth: 0.7,
+    halfDepth: 0.75,
+  },
+  {
     centerX: 0,
     centerZ: -3.38,
-    halfWidth: 4.2,
+    // The GLB's embedded floor is much wider than the visible sofa.
+    halfWidth: 2.1,
     halfDepth: 0.42,
   },
   {
@@ -143,6 +189,20 @@ export const ROOM_SOFA_SEAT = {
   rotationY: Math.PI,
   interactionRadius: 1.65,
 } as const;
+
+export const ROOM_SEATS = {
+  sofa: ROOM_SOFA_SEAT,
+  chair: {
+    position: [
+      COMPUTER_CHAIR.position[0] - 0.06,
+      0.53,
+      COMPUTER_CHAIR.position[2],
+    ],
+    exitPosition: [COMPUTER_CHAIR.position[0], 0, 3.45],
+    rotationY: COMPUTER_CHAIR.rotationY,
+    interactionRadius: 1.7,
+  },
+} as const satisfies Record<RoomSeatId, RoomSeat>;
 
 export const ROOM_SOFA_INTERACTION = {
   center: [0, 1.28, -3],

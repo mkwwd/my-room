@@ -2,7 +2,12 @@ import * as THREE from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-import { ROOM_MODELS, type RoomCollisionBox } from './roomConfig';
+import {
+  ROOM_MODELS,
+  type RoomCollisionBox,
+  type RoomSeat,
+  type RoomSeatId,
+} from './roomConfig';
 
 const CHARACTER_SPEED = 4.25;
 const CHARACTER_BOB_HEIGHT = 0.025;
@@ -27,12 +32,7 @@ type RoomCharacterOptions = {
   limitFrontZ?: number;
   initialPosition: [number, number, number];
   collisionBoxes?: RoomCollisionBox[];
-  sofaSeat?: {
-    position: readonly [number, number, number];
-    exitPosition?: readonly [number, number, number];
-    rotationY: number;
-    interactionRadius: number;
-  };
+  seats?: Partial<Record<RoomSeatId, RoomSeat>>;
 };
 
 type CharacterUpdateOptions = {
@@ -78,17 +78,15 @@ function prepareCharacterModel(object: THREE.Object3D) {
     if (child instanceof THREE.Mesh) {
       child.visible = true;
       child.frustumCulled = false;
-      child.castShadow = true;
       child.receiveShadow = false;
 
       const materials = Array.isArray(child.material)
         ? child.material
         : [child.material];
+      child.castShadow = !materials.some((material) => material.transparent);
 
       materials.forEach((material) => {
         material.side = THREE.DoubleSide;
-        material.transparent = false;
-        material.opacity = 1;
         material.needsUpdate = true;
       });
     }
@@ -155,13 +153,15 @@ export default class RoomCharacterController {
   private readonly movement = new THREE.Vector3();
   private readonly moveToTarget = new THREE.Vector3();
   private readonly currentGroundPosition = new THREE.Vector3();
-  private readonly sofaSeatPosition = new THREE.Vector3();
+  private readonly seatPosition = new THREE.Vector3();
   private mixer: THREE.AnimationMixer | null = null;
   private walkAction: THREE.AnimationAction | null = null;
   private sitAction: THREE.AnimationAction | null = null;
+  private blinkAction: THREE.AnimationAction | null = null;
+  private blinkDelay = 2;
   private walkFadeTimeRemaining = 0;
   private isWalking = false;
-  private isSitting = false;
+  private activeSeat: RoomSeatId | null = null;
   private isDisposed = false;
 
   constructor(private readonly options: RoomCharacterOptions) {
@@ -195,31 +195,53 @@ export default class RoomCharacterController {
     this.clampTargetPosition();
   }
 
-  tryToggleSofaSit({ ignoreDistance = false } = {}) {
-    if (this.isSitting) {
+  private get isSitting() {
+    return this.activeSeat !== null;
+  }
+
+  tryToggleNearbySeat() {
+    if (this.activeSeat) return this.tryToggleSeat(this.activeSeat);
+    let nearest: RoomSeatId | null = null;
+    let nearestDistance = Infinity;
+    for (const id of Object.keys(this.options.seats ?? {}) as RoomSeatId[]) {
+      const seat = this.options.seats![id]!;
+      const distance = Math.hypot(
+        this.object.position.x - seat.position[0],
+        this.object.position.z - seat.position[2],
+      );
+      if (distance <= seat.interactionRadius && distance < nearestDistance) {
+        nearest = id;
+        nearestDistance = distance;
+      }
+    }
+    return nearest ? this.tryToggleSeat(nearest) : false;
+  }
+
+  tryToggleSeat(id: RoomSeatId, { ignoreDistance = false } = {}) {
+    if (this.activeSeat === id) {
       this.exitSitting();
       return true;
     }
 
-    const sofaSeat = this.options.sofaSeat;
-    if (!sofaSeat) return false;
+    const seat = this.options.seats?.[id];
+    if (!seat) return false;
 
-    this.sofaSeatPosition.set(...sofaSeat.position);
     const distanceToSeat = Math.hypot(
-      this.object.position.x - this.sofaSeatPosition.x,
-      this.object.position.z - this.sofaSeatPosition.z,
+      this.object.position.x - seat.position[0],
+      this.object.position.z - seat.position[2],
     );
-    if (!ignoreDistance && distanceToSeat > sofaSeat.interactionRadius) {
+    if (!ignoreDistance && distanceToSeat > seat.interactionRadius) {
       return false;
     }
 
     this.clearInput();
-    this.isSitting = true;
+    this.activeSeat = id;
+    this.seatPosition.set(...seat.position);
     this.isWalking = false;
     this.walkFadeTimeRemaining = 0;
-    this.targetPosition.copy(this.sofaSeatPosition);
-    this.object.position.copy(this.sofaSeatPosition);
-    this.object.rotation.y = sofaSeat.rotationY;
+    this.targetPosition.copy(this.seatPosition);
+    this.object.position.copy(this.seatPosition);
+    this.object.rotation.y = seat.rotationY;
     this.playSitAnimation();
     return true;
   }
@@ -231,6 +253,7 @@ export default class RoomCharacterController {
     viewForward,
     viewRight,
   }: CharacterUpdateOptions) {
+    this.updateAnimations(delta);
     const moveRight =
       (this.hasKey('d', 'arrowright') ? 1 : 0) -
       (this.hasKey('a', 'arrowleft') ? 1 : 0);
@@ -242,6 +265,11 @@ export default class RoomCharacterController {
     this.previousPosition.copy(this.object.position);
 
     if (!movementEnabled) {
+      if (this.isSitting) {
+        this.object.position.copy(this.seatPosition);
+        this.targetPosition.copy(this.seatPosition);
+        return;
+      }
       this.targetPosition.set(
         this.object.position.x,
         0,
@@ -253,12 +281,9 @@ export default class RoomCharacterController {
     }
 
     if (this.isSitting) {
-      this.updateSitAnimation(delta);
-
       if (!hasMovementInput) {
-        this.object.position.copy(this.sofaSeatPosition);
-        this.targetPosition.copy(this.sofaSeatPosition);
-        this.object.position.y = this.sofaSeatPosition.y;
+        this.object.position.copy(this.seatPosition);
+        this.targetPosition.copy(this.seatPosition);
         return;
       }
 
@@ -350,6 +375,7 @@ export default class RoomCharacterController {
     this.mixer = null;
     this.walkAction = null;
     this.sitAction = null;
+    this.blinkAction = null;
     this.walkFadeTimeRemaining = 0;
     this.dracoLoader.dispose();
   }
@@ -435,9 +461,17 @@ export default class RoomCharacterController {
 
         const walkClip = findWalkClip(gltf.animations);
         const sitClip = findSitClip(gltf.animations);
-        if (!walkClip && !sitClip) return;
+        const blinkClip = THREE.AnimationClip.findByName(
+          gltf.animations,
+          'Blink',
+        );
+        if (!walkClip && !sitClip && !blinkClip) return;
 
         this.mixer = new THREE.AnimationMixer(model);
+        if (blinkClip) {
+          this.blinkAction = this.mixer.clipAction(blinkClip);
+          this.blinkAction.setLoop(THREE.LoopOnce, 1);
+        }
         if (walkClip) {
           this.walkAction = this.mixer.clipAction(walkClip);
           this.walkAction.setLoop(THREE.LoopRepeat, Infinity);
@@ -487,10 +521,6 @@ export default class RoomCharacterController {
       }
     }
 
-    if (!isMoving && this.walkFadeTimeRemaining <= 0) return;
-
-    this.mixer.update(delta);
-
     if (this.walkFadeTimeRemaining > 0) {
       this.walkFadeTimeRemaining = Math.max(
         0,
@@ -517,19 +547,26 @@ export default class RoomCharacterController {
     this.mixer.update(0);
   }
 
-  private updateSitAnimation(delta: number) {
-    if (!this.sitAction || !this.mixer) return;
-
+  private updateAnimations(delta: number) {
+    if (!this.mixer) return;
+    if (this.blinkAction) {
+      this.blinkDelay -= delta;
+      if (this.blinkDelay <= 0) {
+        this.blinkAction.reset().play();
+        this.blinkDelay = 3 + Math.random() * 3;
+      }
+    }
+    // Idle frames still need to advance blinks and the seated pose's fade-out.
     this.mixer.update(delta);
   }
 
   private exitSitting() {
     if (!this.isSitting) return;
 
-    this.isSitting = false;
+    const exitPosition = this.options.seats?.[this.activeSeat!]?.exitPosition;
+    this.activeSeat = null;
     this.sitAction?.fadeOut(SIT_FADE_DURATION);
 
-    const exitPosition = this.options.sofaSeat?.exitPosition;
     if (exitPosition && this.canOccupy(exitPosition[0], exitPosition[2])) {
       this.object.position.set(...exitPosition);
     } else {

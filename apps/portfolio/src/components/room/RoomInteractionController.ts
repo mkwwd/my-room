@@ -15,11 +15,16 @@ const INTERACTION_TARGETS: FocusMode[] = [
   'tv',
   'window',
   'aquarium',
+  'portrait',
+  'landscape',
+  'square',
 ];
 export const ROOM_MARKER_TARGETS: RoomHoverTarget[] = [
   ...INTERACTION_TARGETS,
   'sofa',
+  'chair',
   'lightSwitch',
+  'floorLamp',
 ];
 const SOFA_PICK_BOX = new THREE.Box3(
   new THREE.Vector3(
@@ -53,6 +58,7 @@ type RoomInteractionOptions = {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
   stations: Record<FocusMode, InteractiveStation>;
+  chair: Pick<InteractiveStation, 'hintAnchor' | 'isPointerOver'>;
   environment: RoomEnvironment;
   character: RoomCharacterController;
   getSceneMode: () => SceneMode;
@@ -62,6 +68,8 @@ type RoomInteractionOptions = {
   onHoverTargetChange: (target: RoomHoverTarget | null) => void;
   onHintPositionsChange: (positions: HintPositions) => void;
   onToggleLights: () => void;
+  onCycleFloorLamp: () => void;
+  onToggleWindow: () => void;
 };
 
 export default class RoomInteractionController {
@@ -83,16 +91,23 @@ export default class RoomInteractionController {
   }
 
   updateHint(width: number, height: number) {
-    if (!this.options.isEnabled()) return;
+    if (!this.options.isEnabled()) {
+      this.setHoveredTarget(null);
+      return;
+    }
     const positions: HintPositions = {};
     let changed = false;
     for (const target of ROOM_MARKER_TARGETS) {
       const anchor =
         target === 'sofa'
           ? SOFA_HINT_ANCHOR
-          : target === 'lightSwitch'
-            ? this.options.environment.door.hintAnchor
-            : this.options.stations[target].hintAnchor;
+          : target === 'chair'
+            ? this.options.chair.hintAnchor
+            : target === 'lightSwitch'
+              ? this.options.environment.door.hintAnchor
+              : target === 'floorLamp'
+                ? this.options.environment.floorLamp.hintAnchor
+                : this.options.stations[target].hintAnchor;
       this.projectedHint.copy(anchor).project(this.options.camera);
       const x = Math.round((this.projectedHint.x * 0.5 + 0.5) * width);
       const y = Math.round((-this.projectedHint.y * 0.5 + 0.5) * height);
@@ -122,8 +137,16 @@ export default class RoomInteractionController {
       this.lastHintPositions = positions;
       this.options.onHintPositionsChange(positions);
     }
-    if (this.hoveredTarget && !positions[this.hoveredTarget]?.visible)
-      this.setHoveredTarget(null);
+    if (this.hoveredTarget) {
+      const focusedWindow =
+        this.options.getSceneMode() === 'window' &&
+        this.hoveredTarget === 'window';
+      if (
+        !this.isTargetVisible(this.hoveredTarget) ||
+        (!focusedWindow && !positions[this.hoveredTarget]?.visible)
+      )
+        this.setHoveredTarget(null);
+    }
   }
 
   dispose() {
@@ -145,10 +168,12 @@ export default class RoomInteractionController {
   }
 
   setHoveredTarget(nextTarget: RoomHoverTarget | null) {
+    const mode = this.options.getSceneMode();
     if (
       nextTarget &&
       (!this.options.isEnabled() ||
-        this.options.getSceneMode() !== 'explore' ||
+        (mode !== 'explore' &&
+          !(mode === 'window' && nextTarget === 'window')) ||
         !this.isTargetVisible(nextTarget))
     )
       nextTarget = null;
@@ -160,12 +185,18 @@ export default class RoomInteractionController {
 
   private isTargetVisible(target: RoomHoverTarget) {
     if (target === 'sofa') return true;
+    if (target === 'chair') return this.options.chair.hintAnchor.lengthSq() > 0;
+    if (target === 'floorLamp')
+      return this.options.camera.position.z > ROOM_DEPTH_BOUNDS.back;
     if (target === 'lightSwitch')
       return (
         this.options.environment.walls.front.visible &&
         this.options.camera.position.z < ROOM_DEPTH_BOUNDS.front
       );
-    if (target === 'window' && !this.options.environment.walls.left.visible)
+    if (
+      ['window', 'portrait', 'landscape', 'square'].includes(target) &&
+      !this.options.environment.walls.left.visible
+    )
       return false;
     const station = this.options.stations[target];
     if (station.hintAnchor.lengthSq() === 0) return false;
@@ -179,6 +210,16 @@ export default class RoomInteractionController {
   }
 
   private getHoveredTarget() {
+    if (
+      this.isTargetVisible('floorLamp') &&
+      this.options.environment.floorLamp.isPointerOver(this.raycaster)
+    )
+      return 'floorLamp';
+    if (
+      this.isTargetVisible('chair') &&
+      this.options.chair.isPointerOver(this.raycaster)
+    )
+      return 'chair';
     if (
       this.isTargetVisible('lightSwitch') &&
       this.options.environment.door.isPointerOver(this.raycaster)
@@ -194,20 +235,31 @@ export default class RoomInteractionController {
   }
 
   activateTarget(target: RoomHoverTarget) {
+    const mode = this.options.getSceneMode();
     if (
       !this.options.isEnabled() ||
-      this.options.getSceneMode() !== 'explore' ||
+      (mode !== 'explore' && !(mode === 'window' && target === 'window')) ||
       !this.isTargetVisible(target)
     )
       return false;
     this.options.canvas.focus();
+    if (target === 'window' && mode === 'window') {
+      this.options.onToggleWindow();
+      return true;
+    }
     this.setHoveredTarget(null);
+    if (target === 'floorLamp') {
+      this.options.onCycleFloorLamp();
+      return true;
+    }
     if (target === 'lightSwitch') {
       this.options.onToggleLights();
       return true;
     }
-    if (target === 'sofa')
-      return this.options.character.tryToggleSofaSit({ ignoreDistance: true });
+    if (target === 'sofa' || target === 'chair')
+      return this.options.character.tryToggleSeat(target, {
+        ignoreDistance: true,
+      });
     this.options.onEnterFocus(target);
     return true;
   }
@@ -217,7 +269,14 @@ export default class RoomInteractionController {
     if (!this.options.isEnabled() || event.button !== 0) return;
     canvas.focus();
 
-    if (this.options.getSceneMode() !== 'explore') return;
+    const mode = this.options.getSceneMode();
+    if (mode === 'window') {
+      this.updatePointer(event);
+      if (this.options.stations.window.isPointerOver(this.raycaster))
+        this.activateTarget('window');
+      return;
+    }
+    if (mode !== 'explore') return;
 
     this.updatePointer(event);
     const target = this.getHoveredTarget();
@@ -232,9 +291,10 @@ export default class RoomInteractionController {
 
   private readonly onPointerMove = (event: PointerEvent) => {
     const { canvas } = this.options;
+    const mode = this.options.getSceneMode();
     if (
       !this.options.isEnabled() ||
-      this.options.getSceneMode() !== 'explore'
+      (mode !== 'explore' && mode !== 'window')
     ) {
       canvas.style.cursor = 'default';
       this.setHoveredTarget(null);
@@ -242,6 +302,14 @@ export default class RoomInteractionController {
     }
 
     this.updatePointer(event);
+    if (mode === 'window') {
+      const overWindow =
+        this.isTargetVisible('window') &&
+        this.options.stations.window.isPointerOver(this.raycaster);
+      canvas.style.cursor = overWindow ? 'pointer' : 'default';
+      this.setHoveredTarget(overWindow ? 'window' : null);
+      return;
+    }
     const hoveredTarget = this.getHoveredTarget();
     canvas.style.cursor = hoveredTarget ? 'pointer' : 'default';
     this.setHoveredTarget(hoveredTarget);
@@ -262,10 +330,19 @@ export default class RoomInteractionController {
 
     if (
       event.key.toLowerCase() === 'e' &&
-      this.options.getSceneMode() === 'explore' &&
-      this.options.character.tryToggleSofaSit()
+      this.options.getSceneMode() === 'window'
     ) {
       event.preventDefault();
+      if (!event.repeat) this.activateTarget('window');
+      return;
+    }
+
+    if (
+      event.key.toLowerCase() === 'e' &&
+      this.options.getSceneMode() === 'explore'
+    ) {
+      event.preventDefault();
+      if (!event.repeat) this.options.character.tryToggleNearbySeat();
       return;
     }
 

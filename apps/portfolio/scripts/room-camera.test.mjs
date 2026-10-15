@@ -18,12 +18,6 @@ const compiled = ts.transpileModule(readFileSync(sourcePath, 'utf8'), {
   },
 });
 const compiledModule = { exports: {} };
-vm.runInNewContext(compiled.outputText, {
-  require: createRequire(sourcePath),
-  module: compiledModule,
-  exports: compiledModule.exports,
-});
-const { RoomCameraController } = compiledModule.exports;
 const configModule = { exports: {} };
 vm.runInNewContext(
   ts.transpileModule(
@@ -35,7 +29,16 @@ vm.runInNewContext(
   ).outputText,
   { module: configModule, exports: configModule.exports },
 );
-const { ROOM, ROOM_DEPTH_BOUNDS } = configModule.exports;
+const { ROOM, ROOM_DEPTH_BOUNDS, ROOM_WINDOW } = configModule.exports;
+vm.runInNewContext(compiled.outputText, {
+  require: (id) =>
+    id === './roomConfig'
+      ? configModule.exports
+      : createRequire(sourcePath)(id),
+  module: compiledModule,
+  exports: compiledModule.exports,
+});
+const { RoomCameraController } = compiledModule.exports;
 const focusPosition = new THREE.Vector3(-4, 2, 2);
 const focusTarget = new THREE.Vector3(-6, 2, 2);
 const characterPosition = new THREE.Vector3();
@@ -57,6 +60,26 @@ function advance(controller, seconds, fps, mode = 'explore') {
     step(controller, 1 / fps, mode);
   }
 }
+
+test('window framing stays inside the room and resets its lens for other objects', () => {
+  const controller = new RoomCameraController(1.5);
+  controller.resize(1280, 800);
+  for (let i = 0; i < 240; i++)
+    controller.follow({
+      frame: controller.beginFrame(1 / 60),
+      mode: 'window',
+      characterPosition,
+      focusPosition: new THREE.Vector3(ROOM_WINDOW.focusDistance, 4.05, -3.65),
+      focusTarget: new THREE.Vector3(0, 4.05, -3.65),
+    });
+  assert.ok(
+    controller.camera.fov < 38,
+    'desktop close-up should not use the old wide lens',
+  );
+  assert.ok(controller.camera.position.x <= 10.2);
+  advance(controller, 3, 60, 'computer');
+  assert.ok(Math.abs(controller.camera.fov - 30) < 0.001);
+});
 
 test('wall tops stay above the exploration viewport on desktop and mobile', () => {
   for (const aspect of [16 / 9, 768 / 1024, 390 / 844, 360 / 800]) {
@@ -148,6 +171,51 @@ test('focus converges equally at 10, 30, 60 and 120 FPS', () => {
   for (const camera of results.slice(1)) {
     assert.ok(camera.position.distanceTo(results[0].position) < 1e-9);
     assert.ok(Math.abs(camera.fov - results[0].fov) < 0.0001);
+  }
+});
+
+test('focused screens retain tappable side gutters after a viewport resize', () => {
+  for (const screenWidth of [1.72, 5.3]) {
+    const controller = new RoomCameraController(16 / 9);
+    const target = new THREE.Vector3(0, 2.4, 0);
+    const position = new THREE.Vector3(0, 2.4, screenWidth > 2 ? 5.9 : 2.45);
+    for (const [width, height] of [
+      [1280, 800],
+      [600, 400],
+      [844, 390],
+      [470, 460],
+    ]) {
+      controller.resize(width, height);
+      for (let i = 0; i < 240; i++) {
+        controller.follow({
+          frame: controller.beginFrame(1 / 60),
+          mode: screenWidth > 2 ? 'tv' : 'computer',
+          characterPosition,
+          focusPosition: position,
+          focusTarget: target,
+          focusWidth: screenWidth,
+        });
+      }
+      controller.camera.updateMatrixWorld(true);
+      const left = new THREE.Vector3(-screenWidth / 2, 2.4, 0).project(
+        controller.camera,
+      );
+      const right = new THREE.Vector3(screenWidth / 2, 2.4, 0).project(
+        controller.camera,
+      );
+      assert.ok(
+        ((left.x + 1) * width) / 2 >= 44,
+        `left exit gutter at ${width}x${height}`,
+      );
+      assert.ok(
+        ((1 - right.x) * width) / 2 >= 44,
+        `right exit gutter at ${width}x${height}`,
+      );
+      assert.ok(
+        controller.camera.position.distanceTo(target) >=
+          position.distanceTo(target) - 0.001,
+      );
+    }
   }
 });
 

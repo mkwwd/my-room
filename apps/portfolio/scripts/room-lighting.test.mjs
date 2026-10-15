@@ -30,7 +30,7 @@ function loadSource(name, overrides = {}) {
   return compiledModule.exports;
 }
 
-test('white wall fill preserves texture and fades with the switch without brightening the floor', () => {
+test('wall fill follows the switch and the subtly brighter wood retains its texture without glowing', () => {
   class AssetStub {
     isDaytime = true;
     update() {}
@@ -38,6 +38,7 @@ test('white wall fill preserves texture and fades with the switch without bright
   }
   const Environment = loadSource('RoomEnvironment', {
     './RoomFurniture': { default: AssetStub },
+    './RoomPinboard': { default: AssetStub },
     './RoomWindow': { default: AssetStub },
     three: {
       ...createRequire(import.meta.url)('three'),
@@ -50,6 +51,7 @@ test('white wall fill preserves texture and fades with the switch without bright
   }).default;
   for (const isDaytime of [true, false]) {
     const room = new Environment(new THREE.Scene(), new THREE.LoadingManager());
+    assert.ok(room.walls.back.getObjectByName('wall-clock'));
     room.roomWindow.isDaytime = isDaytime;
     const materials = ['back', 'front', 'right'].map(
       (name) => room.walls[name].material,
@@ -57,17 +59,31 @@ test('white wall fill preserves texture and fades with the switch without bright
     room.update(0, 1, false);
     for (const material of materials) {
       assert.equal(material.color.getHexString(), 'ffffff');
-      assert.ok(material.emissiveIntensity >= 0.3);
+      assert.ok(material.emissiveIntensity >= 0.55);
       assert.ok(material.emissive.r > 0);
       assert.equal(material.emissiveMap, material.map);
       assert.ok(material.bumpMap && material.vertexColors);
+      assert.ok(material.bumpScale <= 0.002);
+      const grain = material.map.image.data.filter(
+        (_value, index) => index % 4 === 0,
+      );
+      const darkest = Math.min(...grain);
+      const lightest = Math.max(...grain);
+      assert.ok(darkest >= 250 && lightest - darkest <= 5);
+      assert.ok(lightest > darkest, 'keep a subtle paper grain');
     }
-    assert.equal(room.floorPickTargets[0].material.emissive.getHex(), 0);
+    const floor = room.floorPickTargets[0].material;
+    assert.ok(floor.color.r > 1 && floor.color.r <= 1.1);
+    assert.equal(floor.color.r, floor.color.g);
+    assert.equal(floor.color.g, floor.color.b);
+    assert.ok(floor.map && floor.bumpMap === floor.map);
+    assert.equal(floor.emissive.getHex(), 0);
+    const fillBefore = materials[0].emissiveIntensity;
     assert.equal(room.toggleLights(), false);
     room.update(1 / 60, 1 / 60, false);
     assert.ok(
       materials[0].emissiveIntensity > 0 &&
-        materials[0].emissiveIntensity < 0.35,
+        materials[0].emissiveIntensity < fillBefore,
     );
     for (let i = 1; i <= 120; i++) room.update(i / 60, 1 / 60, false);
     for (const material of materials)
@@ -75,8 +91,9 @@ test('white wall fill preserves texture and fades with the switch without bright
     room.toggleLights();
     room.update(3, 1, false);
     for (const material of materials)
-      assert.ok(material.emissiveIntensity > 0.3);
+      assert.ok(material.emissiveIntensity >= 0.55);
     room.dispose();
+    assert.equal(room.walls.back.getObjectByName('wall-clock'), undefined);
   }
 });
 
