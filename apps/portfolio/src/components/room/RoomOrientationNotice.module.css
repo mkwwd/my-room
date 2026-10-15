@@ -1,0 +1,100 @@
+.scene {
+  position: absolute;
+  inset: 0;
+}
+
+.notice {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  padding: max(24px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
+  background: #f4f3ee;
+  color: #304438;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.brand {
+  position: absolute;
+  top: max(32px, env(safe-area-inset-top));
+  left: 24px;
+  right: 24px;
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.content {
+  display: grid;
+  justify-items: center;
+  gap: 24px;
+  width: min(100%, 280px);
+}
+
+.illustration {
+  position: relative;
+  width: 144px;
+  height: 144px;
+  color: #3f6554;
+}
+
+.phone {
+  position: absolute;
+  inset: 28px;
+  width: 88px;
+  height: 88px;
+  animation: turn-phone 3.2s ease-in-out infinite;
+}
+
+.arrow {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+}
+
+.title {
+  max-width: 260px;
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.5;
+  font-weight: 700;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@keyframes turn-phone {
+  0%,
+  15%,
+  100% {
+    transform: rotate(0deg);
+  }
+  45%,
+  75% {
+    transform: rotate(90deg);
+  }
+}
+
+@media (aspect-ratio < 1/1) {
+  .notice {
+    display: grid;
+    place-items: center;
+  }
+
+  .scene {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone {
+    animation: none;
+    transform: rotate(90deg);
+  }
+}

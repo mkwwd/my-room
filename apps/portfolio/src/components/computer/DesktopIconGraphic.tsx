@@ -1,4 +1,4 @@
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Images } from 'lucide-react';
 import Image from 'next/image';
 
 import type { DesktopIconConfig } from './desktopConfig';
@@ -24,6 +24,19 @@ export default function DesktopIconGraphic({
         className={`${sizeClass} object-contain [image-rendering:pixelated]`}
         draggable={false}
       />
+    );
+  }
+
+  if (icon.id === 'gallery') {
+    return (
+      <span
+        className={`grid ${sizeClass} place-items-center rounded-sm border-2 border-[#9ef2c3] bg-white text-[#247451] shadow-[inset_0_-4px_0_#9ef2c3,0_3px_8px_rgba(36,18,38,0.2)]`}>
+        <Images
+          size={size === 'desktop' ? 31 : 18}
+          strokeWidth={2.2}
+          aria-hidden="true"
+        />
+      </span>
     );
   }
 

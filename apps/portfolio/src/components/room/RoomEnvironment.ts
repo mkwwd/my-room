@@ -8,9 +8,14 @@ import {
   WALL_THICKNESS,
 } from './roomConfig';
 import RoomDoor from './RoomDoor';
+import RoomFloorLamp from './RoomFloorLamp';
 import RoomFurniture from './RoomFurniture';
 import RoomLighting from './RoomLighting';
+import RoomPinboard from './RoomPinboard';
+import RoomWallClock from './RoomWallClock';
 import RoomWindow from './RoomWindow';
+
+const WALL_LIGHT_FILL = 0.6;
 
 export type RoomWalls = {
   back: THREE.Mesh;
@@ -45,10 +50,10 @@ function makeWallTexture() {
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      const grain = (seed / 0xffffffff - 0.5) * 8;
+      const grain = (seed / 0xffffffff - 0.5) * 1.8;
       const weave =
-        Math.sin((x * Math.PI) / 2) * 2 + Math.sin((y * Math.PI) / 4);
-      const value = Math.round(245 + grain + weave);
+        Math.sin((x * Math.PI) / 2) * 0.5 + Math.sin((y * Math.PI) / 4) * 0.35;
+      const value = Math.round(253 + grain + weave);
       const offset = (y * size + x) * 4;
       pixels[offset] = value;
       pixels[offset + 1] = value;
@@ -112,8 +117,8 @@ function finishRoomSurface(
       );
       shade =
         1 -
-        0.1 * Math.exp(-cornerDistance / 0.28) -
-        0.13 * Math.exp(-Math.max(0, point.y - 0.01) / 0.28);
+        0.04 * Math.exp(-cornerDistance / 0.28) -
+        0.06 * Math.exp(-Math.max(0, point.y - 0.01) / 0.28);
     }
     colors.set([shade, shade, shade], i * 3);
   }
@@ -201,6 +206,7 @@ function buildRoom(
   wallTexture: THREE.Texture,
 ): RoomWalls {
   const floorMaterial = makeMaterial(ROOM_COLORS.floor);
+  floorMaterial.color.multiplyScalar(1.08);
   floorMaterial.map = floorTexture;
   floorMaterial.bumpMap = floorTexture;
   floorMaterial.bumpScale = 0.018;
@@ -209,12 +215,12 @@ function buildRoom(
   floorMaterial.vertexColors = true;
   const wallMaterial = makeMaterial(ROOM_COLORS.wall);
   wallMaterial.map = wallTexture;
-  wallMaterial.emissive.set('#fffaf2');
+  wallMaterial.emissive.set('#fffefa');
   wallMaterial.emissiveMap = wallTexture;
-  wallMaterial.emissiveIntensity = 0.35;
+  wallMaterial.emissiveIntensity = WALL_LIGHT_FILL;
   wallMaterial.bumpMap = wallTexture;
-  wallMaterial.bumpScale = 0.012;
-  wallMaterial.roughness = 0.95;
+  wallMaterial.bumpScale = 0.0015;
+  wallMaterial.roughness = 0.88;
   wallMaterial.metalness = 0;
   wallMaterial.vertexColors = true;
   const halfWidth = ROOM.width / 2;
@@ -311,6 +317,7 @@ function buildRoom(
 export default class RoomEnvironment {
   readonly floorPickTargets: THREE.Object3D[] = [];
   readonly walls: RoomWalls;
+  readonly floorLamp: RoomFloorLamp;
 
   private readonly root = new THREE.Group();
   private readonly floorTexture: THREE.Texture;
@@ -318,6 +325,8 @@ export default class RoomEnvironment {
   private readonly wallMaterials: THREE.MeshStandardMaterial[];
   private readonly lighting = new RoomLighting(this.root);
   private readonly furniture: RoomFurniture;
+  private readonly wallClock: RoomWallClock;
+  private readonly pinboard: RoomPinboard;
   readonly roomWindow: RoomWindow;
   readonly door: RoomDoor;
   private lastSkyCheck = Number.NEGATIVE_INFINITY;
@@ -346,6 +355,9 @@ export default class RoomEnvironment {
     this.furniture = new RoomFurniture(this.root, manager);
     this.roomWindow = new RoomWindow(this.walls.left, manager);
     this.door = new RoomDoor(this.walls.front);
+    this.wallClock = new RoomWallClock(this.walls.back);
+    this.pinboard = new RoomPinboard(this.walls.left, manager);
+    this.floorLamp = new RoomFloorLamp(this.root);
   }
 
   get aquarium() {
@@ -353,14 +365,15 @@ export default class RoomEnvironment {
   }
 
   update(elapsedTime: number, delta: number, switchHovered: boolean) {
-    this.roomWindow.update(elapsedTime);
+    this.roomWindow.update(elapsedTime, delta);
     this.lighting.update(delta, this.roomWindow.isDaytime);
     // Approximate bounced indoor light on walls without lifting furniture exposure.
     for (const material of this.wallMaterials) {
-      material.emissiveIntensity = 0.35 * this.lighting.indoorLevel;
+      material.emissiveIntensity = WALL_LIGHT_FILL * this.lighting.indoorLevel;
     }
     this.furniture.update(elapsedTime, this.lighting.indoorLevel);
     this.door.update(this.lighting.isOn, switchHovered, delta);
+    this.wallClock.update(this.lighting.indoorLevel);
     this.updateSkyBackground(elapsedTime);
   }
 
@@ -375,6 +388,9 @@ export default class RoomEnvironment {
   dispose() {
     this.lighting.dispose();
     this.door.dispose();
+    this.wallClock.dispose();
+    this.pinboard.dispose();
+    this.floorLamp.dispose();
     this.floorPickTargets.length = 0;
     this.furniture.dispose();
     this.roomWindow.dispose();

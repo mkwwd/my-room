@@ -2,10 +2,11 @@
 
 import * as THREE from 'three';
 
-import type { SceneMode } from './roomConfig';
+import { ROOM_WINDOW, type SceneMode } from './roomConfig';
 
 const CAMERA_FOV = 32;
 const COMPUTER_CAMERA_FOV = 30;
+const FOCUS_SIDE_GUTTER = 48;
 const CAMERA_DISTANCE = 15;
 const CAMERA_HEIGHT = 10.5;
 const CAMERA_SIDE_FOLLOW = 0.38;
@@ -59,6 +60,7 @@ type CameraFollowOptions = {
   characterPosition: THREE.Vector3;
   focusPosition: THREE.Vector3;
   focusTarget: THREE.Vector3;
+  focusWidth?: number;
 };
 
 type CameraWalls = {
@@ -93,6 +95,7 @@ export class RoomCameraController {
   private targetOrbitAngle = 0;
   private viewDirection: ViewDirection = 0;
   private explorationScale = 1;
+  private viewportWidth = Number.POSITIVE_INFINITY;
   private readonly lookAtTarget = new THREE.Vector3(
     0,
     CAMERA_LOOK_HEIGHT,
@@ -164,6 +167,7 @@ export class RoomCameraController {
     characterPosition,
     focusPosition,
     focusTarget,
+    focusWidth,
   }: CameraFollowOptions) {
     const cameraSideFollow = THREE.MathUtils.clamp(
       characterPosition.dot(frame.right) * CAMERA_SIDE_FOLLOW,
@@ -174,6 +178,22 @@ export class RoomCameraController {
     if (mode !== 'explore') {
       this.desiredPosition.copy(focusPosition);
       this.desiredLookAt.copy(focusTarget);
+      if (focusWidth) {
+        const usableWidth = Math.max(
+          0.1,
+          1 - (2 * FOCUS_SIDE_GUTTER) / this.viewportWidth,
+        );
+        const minimumDistance =
+          focusWidth /
+          (2 *
+            Math.tan(THREE.MathUtils.degToRad(COMPUTER_CAMERA_FOV / 2)) *
+            this.camera.aspect *
+            usableWidth);
+        this.desiredPosition.sub(focusTarget);
+        this.desiredPosition
+          .setLength(Math.max(this.desiredPosition.length(), minimumDistance))
+          .add(focusTarget);
+      }
     } else {
       this.desiredPosition
         .copy(frame.forward)
@@ -193,7 +213,32 @@ export class RoomCameraController {
       this.desiredLookAt.y = CAMERA_LOOK_HEIGHT;
     }
 
-    const desiredFov = mode !== 'explore' ? COMPUTER_CAMERA_FOV : CAMERA_FOV;
+    let desiredFov = mode === 'explore' ? CAMERA_FOV : COMPUTER_CAMERA_FOV;
+    if (mode === 'window') {
+      // Fit the moulding and sill between side exits without retreating into furniture.
+      const height = this.viewportWidth / this.camera.aspect;
+      const usableHeight = Math.max(0.3, 1 - 32 / height);
+      const sideExit = THREE.MathUtils.clamp(
+        this.viewportWidth * 0.12,
+        64,
+        180,
+      );
+      const usableWidth = Math.max(
+        0.3,
+        1 - (2 * (sideExit + 12)) / this.viewportWidth,
+      );
+      const distance = this.desiredPosition.distanceTo(this.desiredLookAt);
+      const frontDistance = Math.max(0.1, distance - 0.28);
+      const tangent = Math.max(
+        (ROOM_WINDOW.height + 0.35) / (2 * frontDistance * usableHeight),
+        (ROOM_WINDOW.width + 0.5) /
+          (2 * frontDistance * this.camera.aspect * usableWidth),
+      );
+      desiredFov = THREE.MathUtils.radToDeg(2 * Math.atan(tangent));
+      const offset = -0.065;
+      this.desiredPosition.y += offset;
+      this.desiredLookAt.y += offset;
+    }
     const nextFov = dampValue(this.lens, desiredFov, frame.delta);
     if (Math.abs(nextFov - this.camera.fov) > 0.0001) {
       this.camera.fov = nextFov;
@@ -215,6 +260,7 @@ export class RoomCameraController {
   }
 
   resize(width: number, height: number) {
+    this.viewportWidth = Math.max(width, 1);
     this.camera.aspect = width / Math.max(height, 1);
     this.explorationScale = Math.max(
       1,

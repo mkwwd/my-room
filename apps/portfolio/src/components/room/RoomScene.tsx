@@ -7,7 +7,17 @@ import * as THREE from 'three';
 import ComputerDesktopLayer from '../computer/ComputerDesktopLayer';
 import ComputerStation from '../computer/ComputerStation';
 import { DESKTOP_UI_HEIGHT, DESKTOP_UI_WIDTH } from '../computer/desktopConfig';
-import { TV_UI_HEIGHT, TV_UI_WIDTH } from '../tv/tvConfig';
+import { GalleryContext } from '../gallery/GalleryContext';
+import {
+  DEFAULT_GALLERY_SELECTION,
+  GALLERY_FRAME_IDS,
+  getGalleryStorage,
+  readGallerySelection,
+  saveGallerySelection,
+  type GalleryFrameId,
+  type GallerySelection,
+} from '../gallery/gallerySelection';
+import { TV_SCREEN, TV_UI_HEIGHT, TV_UI_WIDTH } from '../tv/tvConfig';
 import TvScreenLayer from '../tv/TvScreenLayer';
 import TvStation from '../tv/TvStation';
 
@@ -15,22 +25,27 @@ import { RoomCameraController, type ViewDirection } from './RoomCamera';
 import RoomCatController from './RoomCat';
 import RoomCharacterController from './RoomCharacter';
 import {
+  COMPUTER_SCREEN,
   ROOM,
   ROOM_COLLISION_BOXES,
   ROOM_DEPTH_BOUNDS,
-  ROOM_SOFA_SEAT,
+  ROOM_SEATS,
   type FocusMode,
   type RoomHoverTarget,
   type SceneMode,
 } from './roomConfig';
 import RoomEntrance from './RoomEntrance';
 import RoomEnvironment from './RoomEnvironment';
+import type { FloorLampMode } from './RoomFloorLamp';
 import RoomHud from './RoomHud';
 import RoomInteractionController, {
   type HintPositions,
 } from './RoomInteractionController';
 import RoomLoadingGate, { type RoomLoadingPhase } from './RoomLoadingGate';
 import RoomLoadingScreen from './RoomLoadingScreen';
+import RoomOrientationNotice from './RoomOrientationNotice';
+import orientationStyles from './RoomOrientationNotice.module.css';
+import RoomPictureFrame, { FRAME_LAYOUT } from './RoomPictureFrame';
 import { createScreenTransform } from './screenTransform';
 
 function syncScreenLayer(
@@ -62,11 +77,24 @@ export default function RoomScene() {
   const hoveredTargetRef = useRef<RoomHoverTarget | null>(null);
   const sceneModeRef = useRef<SceneMode>('explore');
   const canInteractRef = useRef(false);
+  const framesRef = useRef<Record<GalleryFrameId, RoomPictureFrame> | null>(
+    null,
+  );
+  const gallerySelectionRef = useRef(DEFAULT_GALLERY_SELECTION);
+  const [unavailableFrames, setUnavailableFrames] = useState<
+    Partial<Record<GalleryFrameId, boolean>>
+  >({});
+  const [gallerySelection, setGallerySelection] = useState<GallerySelection>(
+    DEFAULT_GALLERY_SELECTION,
+  );
   const [loadingPhase, setLoadingPhase] = useState<RoomLoadingPhase>('loading');
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isPortrait, setIsPortrait] = useState(false);
   const [viewDirection, setViewDirection] = useState<ViewDirection>(0);
   const [sceneMode, setSceneMode] = useState<SceneMode>('explore');
   const [lightsOn, setLightsOn] = useState(true);
+  const [floorLampMode, setFloorLampMode] = useState<FloorLampMode>('warm');
+  const [windowOpen, setWindowOpen] = useState(false);
   const [hintPositions, setHintPositions] = useState<HintPositions>({});
   const finishEntry = useCallback(() => {
     canInteractRef.current = true;
@@ -90,10 +118,30 @@ export default function RoomScene() {
   }, []);
 
   const exitFocusMode = useCallback(() => {
+    interactionControllerRef.current?.setHoveredTarget(null);
     sceneModeRef.current = 'explore';
     setSceneMode('explore');
     hoveredTargetRef.current = null;
   }, []);
+
+  const applyGallerySelection = useCallback(
+    async (frame: GalleryFrameId, imageId: string) => {
+      const frames = framesRef.current;
+      if (!frames) throw new Error('방을 불러온 뒤 다시 적용해 주세요.');
+      await frames[frame].setImage(imageId);
+      if (framesRef.current !== frames)
+        throw new Error('방을 다시 불러왔어요. 다시 적용해 주세요.');
+      const next = { ...gallerySelectionRef.current, [frame]: imageId };
+      gallerySelectionRef.current = next;
+      setGallerySelection(next);
+      setUnavailableFrames((current) => ({ ...current, [frame]: false }));
+      if (!saveGallerySelection(getGalleryStorage(), next))
+        throw new Error(
+          '액자에는 적용했지만 저장하지 못했어요. 브라우저 저장 설정을 확인해 주세요.',
+        );
+    },
+    [],
+  );
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -102,6 +150,7 @@ export default function RoomScene() {
     let renderReady = false;
     let loadFailed = false;
     let openingPublished = false;
+    let portraitViewport = window.innerWidth < window.innerHeight;
     canInteractRef.current = false;
 
     const scene = new THREE.Scene();
@@ -176,7 +225,7 @@ export default function RoomScene() {
     const camera = cameraController.camera;
     const entrance = new RoomEntrance(
       camera.position,
-      camera.aspect,
+      Math.max(1, camera.aspect),
       ROOM_DEPTH_BOUNDS.front,
     );
     scene.add(entrance.root);
@@ -195,11 +244,34 @@ export default function RoomScene() {
     const tvStation = new TvStation(room, manager);
 
     const environment = new RoomEnvironment(room, manager);
+    const selection = readGallerySelection(getGalleryStorage());
+    gallerySelectionRef.current = selection;
+    const frames = {
+      portrait: new RoomPictureFrame(environment.walls.left, 'portrait'),
+      landscape: new RoomPictureFrame(environment.walls.left, 'landscape'),
+      square: new RoomPictureFrame(environment.walls.left, 'square'),
+    };
+    framesRef.current = frames;
+    // Restore before the loading gate closes, so the entrance never reveals defaults first.
+    for (const id of GALLERY_FRAME_IDS) {
+      void frames[id].loadInitial(selection[id], manager).then((loaded) => {
+        if (!disposed)
+          setUnavailableFrames((current) => ({ ...current, [id]: !loaded }));
+      });
+    }
+    queueMicrotask(() => {
+      if (!disposed) {
+        setGallerySelection(selection);
+        setWindowOpen(false);
+        setFloorLampMode('warm');
+      }
+    });
     const stations = {
       computer: computerStation,
       tv: tvStation,
       window: environment.roomWindow,
       aquarium: environment.aquarium,
+      ...frames,
     };
 
     const characterController = new RoomCharacterController({
@@ -210,7 +282,7 @@ export default function RoomScene() {
       limitFrontZ: ROOM_DEPTH_BOUNDS.front - 0.35,
       initialPosition: [0, 0, 0.25],
       collisionBoxes: ROOM_COLLISION_BOXES,
-      sofaSeat: ROOM_SOFA_SEAT,
+      seats: ROOM_SEATS,
     });
     const character = characterController.object;
     room.add(character);
@@ -221,10 +293,11 @@ export default function RoomScene() {
       canvas: renderer.domElement,
       camera,
       stations,
+      chair: computerStation.chair,
       environment,
       character: characterController,
       getSceneMode: () => sceneModeRef.current,
-      isEnabled: () => canInteractRef.current,
+      isEnabled: () => canInteractRef.current && !portraitViewport,
       onEnterFocus: enterFocusMode,
       onExitFocus: exitFocusMode,
       onHoverTargetChange: (target) => {
@@ -232,6 +305,8 @@ export default function RoomScene() {
       },
       onHintPositionsChange: setHintPositions,
       onToggleLights: () => setLightsOn(environment.toggleLights()),
+      onCycleFloorLamp: () => setFloorLampMode(environment.floorLamp.cycle()),
+      onToggleWindow: () => setWindowOpen(environment.roomWindow.toggle()),
     });
     interactionControllerRef.current = interactionController;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -242,6 +317,12 @@ export default function RoomScene() {
     };
 
     const resize = () => {
+      portraitViewport = window.innerWidth < window.innerHeight;
+      setIsPortrait(portraitViewport);
+      if (portraitViewport) {
+        characterController.clearInput();
+        interactionController.setHoveredTarget(null);
+      }
       const width = mount.clientWidth;
       const height = Math.max(mount.clientHeight, 1);
       viewportSize.width = width;
@@ -253,6 +334,11 @@ export default function RoomScene() {
 
     const animate = () => {
       const frameDelta = Math.min(clock.getDelta(), 0.25);
+      // Keep the loaded scene and entry pose, but do not advance behind the notice.
+      if (portraitViewport) {
+        frame = requestAnimationFrame(animate);
+        return;
+      }
       const delta = Math.min(frameDelta, 0.04);
       const cameraFrame = cameraController.beginFrame(frameDelta);
       const { forward: viewForward, right: viewRight } = cameraFrame;
@@ -308,6 +394,16 @@ export default function RoomScene() {
           characterPosition: character.position,
           focusPosition: focusedStation.focusPosition,
           focusTarget: focusedStation.focusTarget,
+          focusWidth:
+            sceneModeRef.current === 'computer'
+              ? COMPUTER_SCREEN.width
+              : sceneModeRef.current === 'tv'
+                ? TV_SCREEN.width
+                : sceneModeRef.current === 'portrait' ||
+                    sceneModeRef.current === 'landscape' ||
+                    sceneModeRef.current === 'square'
+                  ? FRAME_LAYOUT[sceneModeRef.current].width
+                  : undefined,
         });
       const isComputerMode = sceneModeRef.current === 'computer';
       const computerViewport = isComputerMode
@@ -356,19 +452,36 @@ export default function RoomScene() {
           hoveredTargetRef.current === 'computer',
         hoverDelta,
       );
+      computerStation.updateChairHover(
+        sceneModeRef.current === 'explore' &&
+          hoveredTargetRef.current === 'chair',
+        hoverDelta,
+      );
       tvStation.updateHover(
         sceneModeRef.current === 'explore' && hoveredTargetRef.current === 'tv',
         hoverDelta,
       );
       environment.roomWindow.updateHover(
-        sceneModeRef.current === 'explore' &&
+        (sceneModeRef.current === 'explore' ||
+          sceneModeRef.current === 'window') &&
           hoveredTargetRef.current === 'window',
         hoverDelta,
       );
+      for (const id of GALLERY_FRAME_IDS) {
+        frames[id].updateHover(
+          sceneModeRef.current === 'explore' && hoveredTargetRef.current === id,
+          hoverDelta,
+        );
+      }
       environment.updateSofaHover(
         sceneModeRef.current === 'explore' &&
           hoveredTargetRef.current === 'sofa',
         hoverDelta,
+      );
+      environment.floorLamp.update(
+        hoverDelta,
+        sceneModeRef.current === 'explore' &&
+          hoveredTargetRef.current === 'floorLamp',
       );
       environment.aquarium.updateHover(
         sceneModeRef.current === 'explore' &&
@@ -413,6 +526,7 @@ export default function RoomScene() {
       characterController.dispose();
       catController.dispose();
       entrance.dispose();
+      environment.floorLamp.dispose();
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose();
@@ -426,6 +540,8 @@ export default function RoomScene() {
       computerStation.dispose();
       tvStation.dispose();
       environment.dispose();
+      for (const id of GALLERY_FRAME_IDS) frames[id].dispose();
+      if (framesRef.current === frames) framesRef.current = null;
       renderer.dispose();
       if (cameraControllerRef.current === cameraController) {
         cameraControllerRef.current = null;
@@ -434,42 +550,60 @@ export default function RoomScene() {
   }, [enterFocusMode, exitFocusMode, finishEntry]);
 
   return (
-    <div className="absolute inset-0" aria-busy={loadingPhase !== 'ready'}>
+    <>
       <div
-        className="absolute inset-0"
-        inert={loadingPhase !== 'ready'}
-        aria-hidden={loadingPhase !== 'ready'}>
+        className={orientationStyles.scene}
+        aria-busy={loadingPhase !== 'ready'}
+        inert={isPortrait}
+        aria-hidden={isPortrait}>
         <div
-          className="absolute inset-0 [&_canvas]:block [&_canvas]:h-full [&_canvas]:w-full"
-          ref={mountRef}
-        />
-        <ComputerDesktopLayer
-          ref={computerDesktopLayerRef}
-          isFocused={sceneMode === 'computer'}
-          onClose={exitFocusMode}
-        />
-        <TvScreenLayer ref={tvScreenLayerRef} isFocused={sceneMode === 'tv'} />
-        {loadingPhase === 'ready' && (
-          <RoomHud
-            lightsOn={lightsOn}
-            sceneMode={sceneMode}
-            hintPositions={hintPositions}
-            onHoverTarget={(target) =>
-              interactionControllerRef.current?.setHoveredTarget(target)
-            }
-            onActivateTarget={(target) =>
-              interactionControllerRef.current?.activateTarget(target)
-            }
-            viewDirection={viewDirection}
-            onExitFocus={exitFocusMode}
-            onRotateView={rotateView}
-            onResetView={() => setView(0)}
+          className="absolute inset-0"
+          inert={loadingPhase !== 'ready'}
+          aria-hidden={loadingPhase !== 'ready'}>
+          <div
+            className="absolute inset-0 [&_canvas]:block [&_canvas]:h-full [&_canvas]:w-full"
+            ref={mountRef}
           />
+          <GalleryContext.Provider
+            value={{
+              selection: gallerySelection,
+              unavailableFrames,
+              applySelection: applyGallerySelection,
+            }}>
+            <ComputerDesktopLayer
+              ref={computerDesktopLayerRef}
+              isFocused={sceneMode === 'computer'}
+            />
+          </GalleryContext.Provider>
+          <TvScreenLayer
+            ref={tvScreenLayerRef}
+            isFocused={sceneMode === 'tv'}
+          />
+          {loadingPhase === 'ready' && (
+            <RoomHud
+              lightsOn={lightsOn}
+              floorLampMode={floorLampMode}
+              windowOpen={windowOpen}
+              sceneMode={sceneMode}
+              hintPositions={hintPositions}
+              onHoverTarget={(target) =>
+                interactionControllerRef.current?.setHoveredTarget(target)
+              }
+              onActivateTarget={(target) =>
+                interactionControllerRef.current?.activateTarget(target)
+              }
+              viewDirection={viewDirection}
+              onExitFocus={exitFocusMode}
+              onRotateView={rotateView}
+              onResetView={() => setView(0)}
+            />
+          )}
+        </div>
+        {loadingPhase !== 'ready' && (
+          <RoomLoadingScreen phase={loadingPhase} progress={loadingProgress} />
         )}
       </div>
-      {loadingPhase !== 'ready' && (
-        <RoomLoadingScreen phase={loadingPhase} progress={loadingProgress} />
-      )}
-    </div>
+      <RoomOrientationNotice />
+    </>
   );
 }

@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Character Preview | My Room</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #f8f9f7;
+        color: #34433c;
+        font:
+          14px system-ui,
+          sans-serif;
+        letter-spacing: 0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      header {
+        position: absolute;
+        z-index: 1;
+        top: 24px;
+        left: 28px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 18px;
+        font-weight: 650;
+      }
+      #status {
+        color: #748178;
+        font-size: 12px;
+      }
+      footer {
+        position: absolute;
+        z-index: 1;
+        bottom: max(20px, env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 12px 16px;
+        width: max-content;
+        max-width: calc(100% - 24px);
+        background: #ffffffed;
+        border: 1px solid #dce2dd;
+        border-radius: 8px;
+      }
+      fieldset {
+        border: 0;
+        display: flex;
+        padding: 0;
+        margin: 0;
+        gap: 12px;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+      }
+      input {
+        accent-color: #427661;
+      }
+      select,
+      button {
+        font: inherit;
+        color: inherit;
+        background: white;
+        border: 1px solid #ccd5ce;
+        border-radius: 4px;
+        min-height: 34px;
+        padding: 5px 9px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        background: #eef3ef;
+      }
+      #blink {
+        min-width: 76px;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      :focus-visible {
+        outline: 2px solid #427661;
+        outline-offset: 3px;
+      }
+      .views {
+        display: flex;
+        gap: 6px;
+      }
+      @media (max-height: 480px) {
+        header {
+          top: 12px;
+          left: 16px;
+        }
+        footer {
+          bottom: 10px;
+          padding: 8px 12px;
+          gap: 10px;
+        }
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/three/build/three.module.js",
+          "three/addons/": "/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header>
+      <h1>캐릭터 미리보기</h1>
+      <span id="status" role="status">불러오는 중</span>
+    </header>
+    <footer aria-label="미리보기 설정">
+      <fieldset aria-label="모델 선택">
+        <label
+          ><input type="radio" name="model" value="doll-soft" />현재 모델</label
+        >
+        <label
+          ><input
+            type="radio"
+            name="model"
+            value="doll-blink"
+            checked />깜빡임</label
+        >
+      </fieldset>
+      <select id="motion" aria-label="동작">
+        <option value="Idle">기본 자세</option>
+        <option value="Walking">걷기</option>
+        <option value="Sitting">앉기</option>
+      </select>
+      <button id="blink" aria-pressed="false" disabled>눈 감기</button>
+      <div class="views">
+        <button id="front" title="정면 시점으로 돌아가기">정면</button
+        ><button id="side" title="측면 보기">측면</button>
+      </div>
+    </footer>
+    <script type="module">
+      import * as THREE from 'three';
+      import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+      import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true,
+      });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.VSMShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.02;
+      document.body.prepend(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#f8f9f7');
+      const studio = new RoomEnvironment();
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const environment = pmrem.fromScene(studio, 0.04);
+      scene.environment = environment.texture;
+      scene.environmentIntensity = 0.22;
+      studio.dispose();
+      pmrem.dispose();
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xd0d7d1, 1.2));
+      const key = new THREE.DirectionalLight(0xfff5e8, 2.0);
+      key.position.set(-3, 7, 5);
+      key.castShadow = true;
+      key.shadow.mapSize.set(1024, 1024);
+      key.shadow.radius = 5;
+      key.shadow.blurSamples = 8;
+      Object.assign(key.shadow.camera, {
+        left: -2.5,
+        right: 2.5,
+        top: 3,
+        bottom: -2.5,
+        near: 0.1,
+        far: 15,
+      });
+      key.shadow.normalBias = 0.012;
+      key.shadow.bias = -0.0001;
+      scene.add(key);
+      const fill = new THREE.DirectionalLight(0xeaf3ff, 0.8);
+      fill.position.set(3, 2, 4);
+      scene.add(fill);
+      const rim = new THREE.DirectionalLight(0xffffff, 1.3);
+      rim.position.set(1, 4, -3);
+      scene.add(rim);
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(200, 200),
+        new THREE.ShadowMaterial({ color: '#526157', opacity: 0.17 }),
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -0.005;
+      ground.receiveShadow = true;
+      scene.add(ground);
+      const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 100);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.enablePan = false;
+      controls.minDistance = 2.3;
+      controls.maxDistance = 12;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.target.set(0, 1.2, 0);
+      let sideView = false;
+      function frame() {
+        const aspect = innerWidth / innerHeight;
+        camera.aspect = aspect;
+        camera.updateProjectionMatrix();
+        const distance = Math.max(innerHeight < 480 ? 7.5 : 6.0, 3.4 / aspect);
+        camera.position.set(
+          sideView ? distance : 0,
+          1.65,
+          sideView ? 0.25 : distance,
+        );
+        controls.update();
+        renderer.setSize(innerWidth, innerHeight);
+      }
+      frame();
+      addEventListener('resize', frame);
+      document.querySelector('#front').onclick = () => {
+        sideView = false;
+        frame();
+      };
+      document.querySelector('#side').onclick = () => {
+        sideView = true;
+        frame();
+      };
+      const loader = new GLTFLoader();
+      const draco = new DRACOLoader();
+      draco.setDecoderPath('/draco/');
+      loader.setDRACOLoader(draco);
+      const cache = new Map();
+      let current;
+      let mixer;
+      let clips;
+      let request = 0;
+      let blinkMixer;
+      let blinkAction;
+      let blinkClosedTime = 0;
+      let holdClosed = false;
+      let elapsed = 0;
+      let nextBlinkAt = 2;
+      const blinkButton = document.querySelector('#blink');
+      blinkButton.onclick = () => {
+        if (!blinkAction) return;
+        holdClosed = !holdClosed;
+        blinkButton.textContent = holdClosed ? '눈 뜨기' : '눈 감기';
+        blinkButton.setAttribute('aria-pressed', String(holdClosed));
+        blinkAction.reset().play();
+        blinkAction.time = blinkClosedTime;
+        blinkAction.paused = holdClosed;
+        blinkMixer.update(0);
+        nextBlinkAt = elapsed + 3;
+      };
+      function animateSelection() {
+        if (!mixer) return;
+        mixer.stopAllAction();
+        const motion = document.querySelector('#motion').value;
+        if (motion === 'Idle') return;
+        const clip = clips.find((clip) => clip.name === motion);
+        if (!clip) return;
+        const inPlace = new THREE.AnimationClip(
+          clip.name,
+          clip.duration,
+          clip.tracks.filter(
+            (track) => !track.name.startsWith('Root.position'),
+          ),
+        );
+        const action = mixer.clipAction(inPlace);
+        action.setLoop(
+          motion === 'Sitting' ? THREE.LoopOnce : THREE.LoopRepeat,
+          Infinity,
+        );
+        action.clampWhenFinished = true;
+        action.play();
+      }
+      async function loadModel(name) {
+        const token = ++request;
+        const status = document.querySelector('#status');
+        status.textContent = '불러오는 중';
+        blinkButton.disabled = true;
+        try {
+          if (!cache.has(name))
+            cache.set(name, loader.loadAsync('/models/' + name + '.glb'));
+          const gltf = await cache.get(name);
+          if (token !== request) return;
+          if (current) scene.remove(current);
+          mixer?.stopAllAction();
+          blinkMixer?.stopAllAction();
+          current = gltf.scene;
+          current.scale.setScalar(1);
+          current.position.set(0, 0, 0);
+          current.updateMatrixWorld(true);
+          const size = new THREE.Box3()
+            .setFromObject(current)
+            .getSize(new THREE.Vector3());
+          current.scale.setScalar(2.4 / size.y);
+          current.updateMatrixWorld(true);
+          const bounds = new THREE.Box3().setFromObject(current);
+          const center = bounds.getCenter(new THREE.Vector3());
+          current.position.set(-center.x, -bounds.min.y, -center.z);
+          current.traverse((child) => {
+            if (child.isMesh) {
+              const eyelid = /Eyelid|Eyelash/.test(child.material?.name ?? '');
+              child.castShadow = !eyelid;
+              child.receiveShadow = !eyelid;
+              child.frustumCulled = false;
+            }
+          });
+          scene.add(current);
+          mixer = new THREE.AnimationMixer(current);
+          clips = gltf.animations;
+          const blinkClip = clips.find((clip) => clip.name === 'Blink');
+          const blinkTrack = blinkClip?.tracks[0];
+          blinkClosedTime = blinkTrack
+            ? blinkTrack.times[
+                blinkTrack.values.indexOf(Math.max(...blinkTrack.values))
+              ]
+            : 0;
+          blinkMixer = new THREE.AnimationMixer(current);
+          blinkAction = blinkClip ? blinkMixer.clipAction(blinkClip) : null;
+          blinkAction?.setLoop(THREE.LoopOnce, 1);
+          holdClosed = false;
+          blinkButton.disabled = !blinkAction;
+          blinkButton.textContent = '눈 감기';
+          blinkButton.setAttribute('aria-pressed', 'false');
+          nextBlinkAt = elapsed + 2;
+          animateSelection();
+          status.textContent =
+            name === 'doll-soft' ? '현재 모델' : '깜빡임 미리보기';
+        } catch {
+          cache.delete(name);
+          status.textContent = '모델을 불러오지 못했어요';
+        }
+      }
+      document
+        .querySelectorAll('[name=model]')
+        .forEach((input) =>
+          input.addEventListener('change', () => loadModel(input.value)),
+        );
+      document.querySelector('#motion').onchange = animateSelection;
+      const clock = new THREE.Clock();
+      renderer.setAnimationLoop(() => {
+        const delta = Math.min(clock.getDelta(), 0.1);
+        elapsed += delta;
+        mixer?.update(delta);
+        if (blinkAction && !holdClosed && elapsed >= nextBlinkAt) {
+          blinkAction.reset().play();
+          nextBlinkAt = elapsed + 3 + Math.random() * 3;
+        }
+        blinkMixer?.update(delta);
+        controls.update();
+        renderer.render(scene, camera);
+      });
+      await loadModel('doll-blink');
+    </script>
+  </body>
+</html>
